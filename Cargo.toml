@@ -1,0 +1,18 @@
+[package]
+name = "edge-auto-scaler"
+version = "0.1.0"
+authors = ["peaceman <nixalio@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+act-zero = "0.2.1"
+log = "0.4.11"
+env_logger = "0.7.1"
+tokio = { version = "0.2.22", features = ["full"] }
+async-trait = "0.1.41"
+futures = "0.3.6"
+serde = "1.0"
+serde_yaml = "0.8"
+anyhow = "1.0.33"
