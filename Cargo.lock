@@ -2,25 +2,14 @@
 # It is not intended for manual editing.
 [[package]]
 name = "act-zero"
-version = "0.2.1"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "748160e4b1082bae4b9e0eb89ff1a1380370036e87fdac83e04fdec8f19d8791"
+checksum = "97dcb6e30502fd61688271f03cbd6f47d43142c8e7838ffea32108b6bd9c81ac"
 dependencies = [
- "act-zero-macro",
+ "async-trait",
  "futures",
- "serde",
-]
-
-[[package]]
-name = "act-zero-macro"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "00cc4c9af812f028fa88f00c29396c6b44dc149294837fbc720216b502913d0b"
-dependencies = [
- "heck",
- "proc-macro2",
- "quote",
- "syn",
+ "log",
+ "tokio",
 ]
 
 [[package]]
@@ -233,15 +222,6 @@ dependencies = [
  "proc-macro-hack",
  "proc-macro-nested",
  "slab",
-]
-
-[[package]]
-name = "heck"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20564e78d53d2bb135c343b3f47714a56af2061f1c928fdb541dc7b9fdd94205"
-dependencies = [
- "unicode-segmentation",
 ]
 
 [[package]]
@@ -620,12 +600,6 @@ dependencies = [
  "quote",
  "syn",
 ]
-
-[[package]]
-name = "unicode-segmentation"
-version = "1.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e83e153d1053cbb5a118eeff7fd5be06ed99153f00dbcd8ae310c5fb2b22edc0"
 
 [[package]]
 name = "unicode-xid"

@@ -1,5 +1,8 @@
 use crate::node_groups::NodeGroup;
-use act_zero::{act_zero, Actor, Addr, Local, Sender};
+use act_zero::runtimes::tokio::Timer;
+use act_zero::timer::Tick;
+use act_zero::{send, Actor, ActorResult, Addr, Produces, WeakAddr};
+use async_trait::async_trait;
 use log::info;
 use std::fmt;
 use std::time::Duration;
@@ -7,6 +10,8 @@ use std::time::Duration;
 pub struct NodeGroupScaler {
     node_group: NodeGroup,
     should_terminate: bool,
+    timer: Timer,
+    addr: WeakAddr<Self>,
 }
 
 impl NodeGroupScaler {
@@ -14,6 +19,8 @@ impl NodeGroupScaler {
         NodeGroupScaler {
             node_group,
             should_terminate: false,
+            timer: Default::default(),
+            addr: Default::default(),
         }
     }
 }
@@ -24,22 +31,31 @@ impl fmt::Display for NodeGroupScaler {
     }
 }
 
+#[async_trait]
 impl Actor for NodeGroupScaler {
-    type Error = ();
-
-    fn started(&mut self, addr: Addr<Local<NodeGroupScaler>>) -> Result<(), Self::Error>
+    async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
     {
         info!("Started {}", self);
 
-        addr.timer_loop(Duration::from_secs(1));
+        self.addr = addr.downgrade();
 
-        Ok(())
+        self.timer
+            .set_interval_weak(self.addr.clone(), Duration::from_secs(1));
+
+        Produces::ok(())
     }
+}
 
-    fn should_terminate(&self) -> bool {
-        self.should_terminate
+#[async_trait]
+impl Tick for NodeGroupScaler {
+    async fn tick(&mut self) -> ActorResult<()> {
+        if self.timer.tick() {
+            send!(self.addr.scale());
+        }
+
+        Produces::ok(())
     }
 }
 
@@ -49,36 +65,16 @@ impl Drop for NodeGroupScaler {
     }
 }
 
-#[act_zero]
-pub trait NodeGroupScalerTrait {
-    fn timer_loop(&self, period: Duration);
-    fn terminate(&self);
-    fn is_alive(&self, res: Sender<bool>);
-    fn scale(&self);
-}
-
-#[act_zero]
-impl NodeGroupScalerTrait for NodeGroupScaler {
-    async fn timer_loop(self: Addr<Local<NodeGroupScaler>>, period: Duration) {
-        info!("Start timer with a period of {:?}", period);
-
-        let mut interval = tokio::time::interval(period);
-
-        loop {
-            interval.tick().await;
-            self.scale();
-        }
-    }
-
-    async fn terminate(&mut self) {
+impl NodeGroupScaler {
+    pub async fn terminate(&mut self) -> ActorResult<()> {
         self.should_terminate = true;
+
+        Err("Terminate".into())
     }
 
-    async fn is_alive(self: Addr<Local<NodeGroupScaler>>, res: Sender<bool>) {
-        res.send(true).ok();
-    }
-
-    async fn scale(&mut self) {
+    async fn scale(&mut self) -> ActorResult<()> {
         info!("Scale {}", self.node_group.name);
+
+        Produces::ok(())
     }
 }

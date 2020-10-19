@@ -1,9 +1,10 @@
 use log::info;
 
-use crate::node_groups::controller::NodeGroupsControllerTrait;
-use crate::node_groups::controller::NodeGroupsControllerTraitExt;
-use crate::node_groups::NodeGroup;
-use act_zero::{act_zero, Actor, Addr, Local};
+use crate::node_groups::{NodeGroup, NodeGroupsController};
+use act_zero::runtimes::tokio::Timer;
+use act_zero::timer::Tick;
+use act_zero::{send, Actor, ActorResult, Addr, Produces, WeakAddr};
+use async_trait::async_trait;
 use futures::stream::{FuturesUnordered, StreamExt};
 use futures::TryFutureExt;
 use std::fmt::Formatter;
@@ -15,31 +16,50 @@ use tokio::fs::DirEntry;
 
 pub struct FileBasedNodeGroupExplorer {
     directory_path: PathBuf,
-    node_groups_controller: Addr<dyn NodeGroupsControllerTrait>,
+    node_groups_controller: Addr<NodeGroupsController>,
+    timer: Timer,
+    addr: WeakAddr<Self>,
 }
 
 impl FileBasedNodeGroupExplorer {
     pub fn new(
         directory_path: impl AsRef<Path>,
-        node_groups_controller: Addr<dyn NodeGroupsControllerTrait>,
+        node_groups_controller: Addr<NodeGroupsController>,
     ) -> Self {
         FileBasedNodeGroupExplorer {
             directory_path: directory_path.as_ref().into(),
             node_groups_controller,
+            timer: Default::default(),
+            addr: Default::default(),
         }
     }
 }
 
+#[async_trait]
 impl Actor for FileBasedNodeGroupExplorer {
-    type Error = ();
-
-    fn started(&mut self, addr: Addr<Local<Self>>) -> Result<(), Self::Error>
+    async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
     {
         info!("Started {}", self);
-        addr.timer_loop(Duration::from_secs(5));
-        Ok(())
+
+        self.addr = addr.downgrade();
+
+        self.timer
+            .set_interval_weak(self.addr.clone(), Duration::from_secs(5));
+
+        Produces::ok(())
+    }
+}
+
+#[async_trait]
+impl Tick for FileBasedNodeGroupExplorer {
+    async fn tick(&mut self) -> ActorResult<()> {
+        if self.timer.tick() {
+            send!(self.addr.discover());
+        }
+
+        Produces::ok(())
     }
 }
 
@@ -49,25 +69,7 @@ impl Drop for FileBasedNodeGroupExplorer {
     }
 }
 
-#[act_zero]
-trait NodeGroupExplorer {
-    fn timer_loop(&self, period: Duration);
-    fn discover(&self);
-}
-
-#[act_zero]
-impl NodeGroupExplorer for FileBasedNodeGroupExplorer {
-    async fn timer_loop(self: Addr<Local<FileBasedNodeGroupExplorer>>, period: Duration) {
-        info!("Start timer with a period of {:?}", period);
-
-        let mut interval = tokio::time::interval(period);
-
-        loop {
-            interval.tick().await;
-            self.discover();
-        }
-    }
-
+impl FileBasedNodeGroupExplorer {
     async fn discover(&self) {
         info!("Start discovery");
 
@@ -75,8 +77,9 @@ impl NodeGroupExplorer for FileBasedNodeGroupExplorer {
 
         for node_group in node_groups.into_iter() {
             info!("Discovered node group: {:?}", node_group);
-            self.node_groups_controller
-                .discovered_node_group(node_group);
+            send!(self
+                .node_groups_controller
+                .discovered_node_group(node_group));
         }
 
         info!("Finished discovery");

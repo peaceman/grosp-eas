@@ -5,9 +5,8 @@ mod scaler;
 use serde::Deserialize;
 
 pub use controller::NodeGroupsController;
-pub use controller::NodeGroupsControllerTrait;
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct NodeGroup {
     name: String,
 }

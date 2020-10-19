@@ -1,8 +1,6 @@
-use act_zero::spawn;
+use act_zero::runtimes::tokio::spawn_actor;
 use edge_auto_scaler::node_groups::discovery::FileBasedNodeGroupExplorer;
 use edge_auto_scaler::node_groups::NodeGroupsController;
-use edge_auto_scaler::node_groups::NodeGroupsControllerTrait;
-use edge_auto_scaler::Runtime;
 use env_logger::Env;
 use std::time::Duration;
 
@@ -14,14 +12,11 @@ fn init_logging() {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logging();
 
-    let node_groups_controller = spawn(&Runtime, NodeGroupsController::new(Runtime))?;
-    let _explorer = spawn(
-        &Runtime,
-        FileBasedNodeGroupExplorer::new(
-            "node_groups",
-            node_groups_controller.upcast::<dyn NodeGroupsControllerTrait>(),
-        ),
-    )?;
+    let node_groups_controller = spawn_actor(NodeGroupsController::new());
+    let _explorer = spawn_actor(FileBasedNodeGroupExplorer::new(
+        "node_groups",
+        node_groups_controller,
+    ));
 
     let mut interval = tokio::time::interval(Duration::from_secs(30));
     loop {
