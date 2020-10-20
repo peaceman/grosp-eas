@@ -1,7 +1,13 @@
+mod state_machine;
+
+use crate::node::controller::state_machine::NodeMachine;
 use crate::node::{NodeStats, NodeStatsObserver};
+use act_zero::runtimes::tokio::Timer;
+use act_zero::timer::Tick;
 use act_zero::{call, send, Actor, ActorResult, Addr, AddrLike, Produces, WeakAddr};
 use async_trait::async_trait;
 use log::info;
+use std::time::Duration;
 use tokio::stream::{Stream, StreamExt};
 
 pub struct NodeController<NSS, NSSF>
@@ -13,6 +19,8 @@ where
     addr: WeakAddr<Self>,
     stats_observer: WeakAddr<dyn NodeStatsObserver>,
     node_stats_source_factory: NSSF,
+    node_machine_timer: Timer,
+    node_machine: Option<NodeMachine>,
 }
 
 #[async_trait]
@@ -29,9 +37,27 @@ where
 
         self.addr = addr.downgrade();
 
-        let weak_addr = addr.downgrade();
-        let nss = (self.node_stats_source_factory)(self.hostname.clone());
-        addr.send_fut(async move { Self::poll_stream(weak_addr, nss).await });
+        self.node_machine_timer
+            .set_interval_weak(self.addr.clone(), Duration::from_secs(1));
+
+        // let weak_addr = addr.downgrade();
+        // let nss = (self.node_stats_source_factory)(self.hostname.clone());
+        // addr.send_fut(async move { Self::poll_stream(weak_addr, nss).await });
+
+        Produces::ok(())
+    }
+}
+
+#[async_trait]
+impl<NSS, NSSF> Tick for NodeController<NSS, NSSF>
+where
+    NSS: Stream<Item = NodeStats> + Send + Unpin + 'static,
+    NSSF: Fn(String) -> NSS + Send + Sync + 'static,
+{
+    async fn tick(&mut self) -> ActorResult<()> {
+        if self.node_machine_timer.tick() {
+            send!(self.addr.process_node_machine());
+        }
 
         Produces::ok(())
     }
@@ -52,6 +78,8 @@ where
             stats_observer,
             node_stats_source_factory: nss_factory,
             addr: Default::default(),
+            node_machine_timer: Default::default(),
+            node_machine: Some(NodeMachine::new()),
         }
     }
 
@@ -71,5 +99,11 @@ where
         while let Some(stats) = stats_stream.next().await {
             send!(addr.publish_stats(stats));
         }
+    }
+
+    async fn process_node_machine(&mut self) {
+        info!("Process node machine {}", self.hostname);
+
+        self.node_machine = Some(self.node_machine.take().unwrap().handle(None).await);
     }
 }
