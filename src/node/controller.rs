@@ -1,7 +1,9 @@
 mod state_machine;
 
-use crate::node::controller::state_machine::NodeMachine;
-use crate::node::{NodeStats, NodeStatsObserver};
+use crate::cloud_provider::CloudProvider;
+use crate::dns_provider::DnsProvider;
+use crate::node::controller::state_machine::{NodeMachine, NodeMachineEvent};
+use crate::node::{NodeDiscoveryData, NodeStats, NodeStatsObserver};
 use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
 use act_zero::{call, send, Actor, ActorResult, Addr, AddrLike, Produces, WeakAddr};
@@ -18,6 +20,8 @@ where
     hostname: String,
     addr: WeakAddr<Self>,
     stats_observer: WeakAddr<dyn NodeStatsObserver>,
+    cloud_provider: Addr<dyn CloudProvider>,
+    dns_provider: Addr<dyn DnsProvider>,
     node_stats_source_factory: NSSF,
     node_machine_timer: Timer,
     node_machine: Option<NodeMachine>,
@@ -56,7 +60,7 @@ where
 {
     async fn tick(&mut self) -> ActorResult<()> {
         if self.node_machine_timer.tick() {
-            send!(self.addr.process_node_machine());
+            send!(self.addr.process_node_machine(None));
         }
 
         Produces::ok(())
@@ -71,16 +75,37 @@ where
     pub fn new(
         hostname: String,
         stats_observer: WeakAddr<dyn NodeStatsObserver>,
+        cloud_provider: Addr<dyn CloudProvider>,
+        dns_provider: Addr<dyn DnsProvider>,
         nss_factory: NSSF,
     ) -> Self {
         Self {
-            hostname,
+            hostname: hostname.clone(),
             stats_observer,
+            cloud_provider,
+            dns_provider,
             node_stats_source_factory: nss_factory,
             addr: Default::default(),
             node_machine_timer: Default::default(),
-            node_machine: Some(NodeMachine::new()),
+            node_machine: Some(NodeMachine::new(hostname)),
         }
+    }
+
+    pub async fn provision_node(&mut self) {
+        self.process_node_machine(Some(NodeMachineEvent::ProvisionNode {
+            cloud_provider: self.cloud_provider.clone(),
+            dns_provider: self.dns_provider.clone(),
+            state_timeout: Duration::from_secs(10 * 60),
+        }))
+        .await;
+    }
+
+    pub async fn discovered_node(&mut self, discovery_data: NodeDiscoveryData) {
+        self.process_node_machine(Some(NodeMachineEvent::DiscoveredNode {
+            discovery_data,
+            cloud_provider: self.cloud_provider.clone(),
+        }))
+        .await;
     }
 
     async fn stop(&mut self) -> ActorResult<()> {
@@ -101,9 +126,9 @@ where
         }
     }
 
-    async fn process_node_machine(&mut self) {
+    async fn process_node_machine(&mut self, event: Option<NodeMachineEvent>) {
         info!("Process node machine {}", self.hostname);
 
-        self.node_machine = Some(self.node_machine.take().unwrap().handle(None).await);
+        self.node_machine = Some(self.node_machine.take().unwrap().handle(event).await);
     }
 }

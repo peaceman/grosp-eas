@@ -25,6 +25,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let _node_controller = spawn_actor(NodeController::new(
         "demo".into(),
         Default::default(),
+        Default::default(),
+        Default::default(),
         |_hostname| FixedNodeStatsStream {
             interval: tokio::time::interval(Duration::from_millis(100)),
         },
