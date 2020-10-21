@@ -121,6 +121,22 @@ impl Handler for Data<Provisioning> {
                     self.provision_node().await
                 }
             }
+            Some(NodeMachineEvent::DiscoveredNode { discovery_data, .. }) => {
+                let node_info = self.state.node_info.unwrap();
+
+                match discovery_data.state {
+                    NodeDiscoveryState::Ready => NodeMachine::Ready(Data {
+                        hostname: self.hostname,
+                        state: Ready { node_info },
+                    }),
+                    _ => NodeMachine::Deprovisioning(Data {
+                        hostname: self.hostname,
+                        state: Deprovisioning {
+                            node_info: Some(node_info),
+                        },
+                    }),
+                }
+            }
             _ => NodeMachine::Provisioning(self),
         }
     }
