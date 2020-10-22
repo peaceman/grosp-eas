@@ -91,10 +91,32 @@ pub struct Active {
     marked_as_active: bool,
 }
 
+impl Active {
+    fn new(node_info: CloudNodeInfo) -> Self {
+        Self {
+            node_info,
+            marked_as_active: false,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Draining {
     node_info: CloudNodeInfo,
     cause: NodeDrainingCause,
+    marked_as_draining: bool,
+    entered_state_at: Instant,
+}
+
+impl Draining {
+    fn new(node_info: CloudNodeInfo, cause: NodeDrainingCause) -> Self {
+        Self {
+            node_info,
+            cause,
+            marked_as_draining: false,
+            entered_state_at: Instant::now(),
+        }
+    }
 }
 
 #[derive(Debug)]

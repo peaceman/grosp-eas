@@ -11,10 +11,7 @@ impl Handler for Data<Ready> {
 
                 NodeMachine::Active(Data {
                     shared: self.shared,
-                    state: Active {
-                        node_info: self.state.node_info,
-                        marked_as_active: false,
-                    },
+                    state: Active::new(self.state.node_info),
                 })
             }
             _ => NodeMachine::Ready(self),

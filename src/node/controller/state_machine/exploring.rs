@@ -38,7 +38,7 @@ impl Data<Exploring> {
                 }),
                 NodeDiscoveryState::Draining(cause) => NodeMachine::Draining(Data {
                     shared: self.shared,
-                    state: Draining { node_info, cause },
+                    state: Draining::new(node_info, cause),
                 }),
             }
         } else {

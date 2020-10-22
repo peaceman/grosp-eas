@@ -18,10 +18,7 @@ impl Handler for Data<Active> {
 
                 NodeMachine::Draining(Data {
                     shared: self.shared,
-                    state: Draining {
-                        node_info: self.state.node_info,
-                        cause,
-                    },
+                    state: Draining::new(self.state.node_info, cause),
                 })
             }
             _ if !self.state.marked_as_active => self.mark_as_active().await,
