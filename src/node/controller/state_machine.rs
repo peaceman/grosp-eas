@@ -9,17 +9,14 @@ mod ready;
 
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
 use crate::dns_provider::DnsProvider;
-use crate::node::{NodeDiscoveryData, NodeDiscoveryState};
+use crate::node::NodeDrainingCause;
+use crate::node_discovery::{NodeDiscoveryData, NodeDiscoveryProvider};
 use act_zero::{call, Addr};
 use async_trait::async_trait;
 use log::{error, info};
 use std::time::{Duration, Instant};
 
-pub enum NodeDrainingCause {
-    Scaling,
-    RollingUpdate,
-}
-
+#[derive(Debug)]
 pub enum NodeState {
     Unready,
     Active,
@@ -39,15 +36,10 @@ pub enum NodeMachine {
 }
 
 pub enum NodeMachineEvent {
-    ProvisionNode {
-        cloud_provider: Addr<dyn CloudProvider>,
-        dns_provider: Addr<dyn DnsProvider>,
-        state_timeout: Duration,
-    },
-    DiscoveredNode {
-        discovery_data: NodeDiscoveryData,
-        cloud_provider: Addr<dyn CloudProvider>,
-    },
+    ProvisionNode { state_timeout: Duration },
+    DiscoveredNode { discovery_data: NodeDiscoveryData },
+    ActivateNode,
+    DeprovisionNode { cause: NodeDrainingCause },
 }
 
 #[async_trait]
@@ -60,6 +52,9 @@ pub trait MachineState {}
 #[derive(Debug)]
 pub struct Data<S: MachineState> {
     hostname: String,
+    node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
+    cloud_provider: Addr<dyn CloudProvider>,
+    dns_provider: Addr<dyn DnsProvider>,
     state: S,
 }
 
@@ -68,8 +63,6 @@ pub struct Initializing {}
 
 #[derive(Debug)]
 pub struct Provisioning {
-    cloud_provider: Addr<dyn CloudProvider>,
-    dns_provider: Addr<dyn DnsProvider>,
     node_info: Option<CloudNodeInfo>,
     entered_state_at: Instant,
     state_timeout: Duration,
@@ -79,7 +72,6 @@ pub struct Provisioning {
 #[derive(Debug)]
 pub struct Exploring {
     pub discovery_data: NodeDiscoveryData,
-    cloud_provider: Addr<dyn CloudProvider>,
 }
 
 #[derive(Debug)]
@@ -90,11 +82,13 @@ pub struct Ready {
 #[derive(Debug)]
 pub struct Active {
     node_info: CloudNodeInfo,
+    marked_as_active: bool,
 }
 
 #[derive(Debug)]
 pub struct Draining {
     node_info: CloudNodeInfo,
+    cause: NodeDrainingCause,
 }
 
 #[derive(Debug)]
@@ -106,10 +100,18 @@ pub struct Deprovisioning {
 pub struct Deprovisioned {}
 
 impl NodeMachine {
-    pub fn new(hostname: String) -> Self {
+    pub fn new(
+        hostname: String,
+        node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
+        cloud_provider: Addr<dyn CloudProvider>,
+        dns_provider: Addr<dyn DnsProvider>,
+    ) -> Self {
         Self::Initializing(Data {
             state: Initializing {},
             hostname,
+            node_discovery_provider,
+            cloud_provider,
+            dns_provider,
         })
     }
 

@@ -1,4 +1,7 @@
 use super::*;
+use crate::node_discovery::NodeDiscoveryState;
+use act_zero::call;
+use log::error;
 
 impl MachineState for Exploring {}
 
@@ -14,25 +17,33 @@ impl Handler for Data<Exploring> {
 
 impl Data<Exploring> {
     async fn explore_node_info(self) -> NodeMachine {
-        let node_info = call!(self
-            .state
-            .cloud_provider
-            .get_node_info(self.hostname.clone()))
-        .await;
+        let node_info = call!(self.cloud_provider.get_node_info(self.hostname.clone())).await;
 
         if let Ok(Some(node_info)) = node_info {
             match self.state.discovery_data.state {
                 NodeDiscoveryState::Ready => NodeMachine::Ready(Data {
                     hostname: self.hostname,
+                    node_discovery_provider: self.node_discovery_provider,
+                    cloud_provider: self.cloud_provider,
+                    dns_provider: self.dns_provider,
                     state: Ready { node_info },
                 }),
                 NodeDiscoveryState::Active => NodeMachine::Active(Data {
                     hostname: self.hostname,
-                    state: Active { node_info },
+                    node_discovery_provider: self.node_discovery_provider,
+                    cloud_provider: self.cloud_provider,
+                    dns_provider: self.dns_provider,
+                    state: Active {
+                        node_info,
+                        marked_as_active: true,
+                    },
                 }),
-                NodeDiscoveryState::Draining => NodeMachine::Draining(Data {
+                NodeDiscoveryState::Draining(cause) => NodeMachine::Draining(Data {
                     hostname: self.hostname,
-                    state: Draining { node_info },
+                    node_discovery_provider: self.node_discovery_provider,
+                    cloud_provider: self.cloud_provider,
+                    dns_provider: self.dns_provider,
+                    state: Draining { node_info, cause },
                 }),
             }
         } else {

@@ -19,14 +19,7 @@ pub trait NodeStatsObserver: Actor {
 }
 
 #[derive(Debug)]
-pub struct NodeDiscoveryData {
-    pub hostname: String,
-    pub state: NodeDiscoveryState,
-}
-
-#[derive(Debug)]
-pub enum NodeDiscoveryState {
-    Ready,
-    Active,
-    Draining,
+pub enum NodeDrainingCause {
+    Scaling,
+    RollingUpdate,
 }

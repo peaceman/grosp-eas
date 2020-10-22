@@ -27,6 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Default::default(),
         Default::default(),
         Default::default(),
+        Default::default(),
         |_hostname| FixedNodeStatsStream {
             interval: tokio::time::interval(Duration::from_millis(100)),
         },
