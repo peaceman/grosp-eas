@@ -122,10 +122,22 @@ impl Draining {
 #[derive(Debug)]
 pub struct Deprovisioning {
     node_info: Option<CloudNodeInfo>,
+    deleted_node: bool,
+    deleted_dns_records: bool,
+}
+
+impl Deprovisioning {
+    fn new(node_info: Option<CloudNodeInfo>) -> Self {
+        Self {
+            node_info,
+            deleted_node: false,
+            deleted_dns_records: false,
+        }
+    }
 }
 
 #[derive(Debug)]
-pub struct Deprovisioned {}
+pub struct Deprovisioned;
 
 impl NodeMachine {
     pub fn new(

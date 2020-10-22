@@ -12,15 +12,15 @@ impl Handler for Data<Provisioning> {
                 if self.reached_provisioning_timeout() {
                     NodeMachine::Deprovisioning(Data {
                         shared: self.shared,
-                        state: Deprovisioning {
-                            node_info: self.state.node_info,
-                        },
+                        state: Deprovisioning::new(self.state.node_info),
                     })
                 } else {
                     self.provision_node().await
                 }
             }
             Some(NodeMachineEvent::DiscoveredNode { discovery_data }) => {
+                // if we provisioned the node just in this state, there should always be a node
+                // info available
                 let node_info = self.state.node_info.unwrap();
 
                 match discovery_data.state {
@@ -30,9 +30,7 @@ impl Handler for Data<Provisioning> {
                     }),
                     _ => NodeMachine::Deprovisioning(Data {
                         shared: self.shared,
-                        state: Deprovisioning {
-                            node_info: Some(node_info),
-                        },
+                        state: Deprovisioning::new(Some(node_info)),
                     }),
                 }
             }

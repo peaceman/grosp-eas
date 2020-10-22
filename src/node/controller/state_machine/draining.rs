@@ -14,9 +14,7 @@ impl Handler for Data<Draining> {
 
                 NodeMachine::Deprovisioning(Data {
                     shared: self.shared,
-                    state: Deprovisioning {
-                        node_info: Some(self.state.node_info),
-                    },
+                    state: Deprovisioning::new(Some(self.state.node_info)),
                 })
             }
             (Some(NodeMachineEvent::ActivateNode), NodeDrainingCause::Scaling) => {
