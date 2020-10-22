@@ -1,3 +1,4 @@
+mod config;
 mod state_machine;
 
 use crate::cloud_provider::CloudProvider;
@@ -12,6 +13,8 @@ use async_trait::async_trait;
 use log::info;
 use std::time::Duration;
 use tokio::stream::{Stream, StreamExt};
+
+use config::Config;
 
 pub struct NodeController<NSS, NSSF>
 where
@@ -94,15 +97,17 @@ where
                 node_discovery_provider.clone(),
                 cloud_provider.clone(),
                 dns_provider.clone(),
+                Config {
+                    draining_time: Duration::from_secs(2 * 60),
+                    provisioning_timeout: Duration::from_secs(10 * 60),
+                },
             )),
         }
     }
 
     pub async fn provision_node(&mut self) {
-        self.process_node_machine(Some(NodeMachineEvent::ProvisionNode {
-            state_timeout: Duration::from_secs(10 * 60),
-        }))
-        .await;
+        self.process_node_machine(Some(NodeMachineEvent::ProvisionNode))
+            .await;
     }
 
     pub async fn discovered_node(&mut self, discovery_data: NodeDiscoveryData) {

@@ -7,6 +7,7 @@ mod initializing;
 mod provisioning;
 mod ready;
 
+use super::Config;
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
 use crate::dns_provider::DnsProvider;
 use crate::node::NodeDrainingCause;
@@ -36,7 +37,7 @@ pub enum NodeMachine {
 }
 
 pub enum NodeMachineEvent {
-    ProvisionNode { state_timeout: Duration },
+    ProvisionNode,
     DiscoveredNode { discovery_data: NodeDiscoveryData },
     ActivateNode,
     DeprovisionNode { cause: NodeDrainingCause },
@@ -51,11 +52,17 @@ pub trait MachineState {}
 
 #[derive(Debug)]
 pub struct Data<S: MachineState> {
+    shared: Shared,
+    state: S,
+}
+
+#[derive(Debug)]
+pub struct Shared {
     hostname: String,
     node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
     cloud_provider: Addr<dyn CloudProvider>,
     dns_provider: Addr<dyn DnsProvider>,
-    state: S,
+    config: Config,
 }
 
 #[derive(Debug)]
@@ -65,7 +72,6 @@ pub struct Initializing {}
 pub struct Provisioning {
     node_info: Option<CloudNodeInfo>,
     entered_state_at: Instant,
-    state_timeout: Duration,
     created_dns_records: bool,
 }
 
@@ -105,13 +111,17 @@ impl NodeMachine {
         node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
         cloud_provider: Addr<dyn CloudProvider>,
         dns_provider: Addr<dyn DnsProvider>,
+        config: Config,
     ) -> Self {
         Self::Initializing(Data {
             state: Initializing {},
-            hostname,
-            node_discovery_provider,
-            cloud_provider,
-            dns_provider,
+            shared: Shared {
+                hostname,
+                node_discovery_provider,
+                cloud_provider,
+                dns_provider,
+                config,
+            },
         })
     }
 

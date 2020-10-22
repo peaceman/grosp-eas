@@ -7,13 +7,10 @@ impl Handler for Data<Ready> {
     async fn handle(self, event: Option<NodeMachineEvent>) -> NodeMachine {
         match event {
             Some(NodeMachineEvent::ActivateNode) => {
-                info!("Activate Node {}", self.hostname);
+                info!("Activate Node {}", self.shared.hostname);
 
                 NodeMachine::Active(Data {
-                    node_discovery_provider: self.node_discovery_provider,
-                    cloud_provider: self.cloud_provider,
-                    dns_provider: self.dns_provider,
-                    hostname: self.hostname,
+                    shared: self.shared,
                     state: Active {
                         node_info: self.state.node_info,
                         marked_as_active: false,
