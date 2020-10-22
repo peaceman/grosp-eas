@@ -24,8 +24,6 @@ where
     hostname: String,
     addr: WeakAddr<Self>,
     stats_observer: WeakAddr<dyn NodeStatsObserver>,
-    cloud_provider: Addr<dyn CloudProvider>,
-    dns_provider: Addr<dyn DnsProvider>,
     node_stats_source_factory: NSSF,
     node_machine_timer: Timer,
     node_machine: Option<NodeMachine>,
@@ -87,16 +85,14 @@ where
         Self {
             hostname: hostname.clone(),
             stats_observer,
-            cloud_provider: cloud_provider.clone(),
-            dns_provider: dns_provider.clone(),
             node_stats_source_factory: nss_factory,
             addr: Default::default(),
             node_machine_timer: Default::default(),
             node_machine: Some(NodeMachine::new(
                 hostname,
-                node_discovery_provider.clone(),
-                cloud_provider.clone(),
-                dns_provider.clone(),
+                node_discovery_provider,
+                cloud_provider,
+                dns_provider,
                 Config {
                     draining_time: Duration::from_secs(2 * 60),
                     provisioning_timeout: Duration::from_secs(10 * 60),
