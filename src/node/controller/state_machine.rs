@@ -9,10 +9,12 @@ mod provisioning;
 mod ready;
 
 use super::Config;
+use super::StatsStreamer;
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
 use crate::dns_provider::DnsProvider;
-use crate::node::NodeDrainingCause;
+use crate::node::{NodeDrainingCause, NodeStatsObserver};
 use crate::node_discovery::{NodeDiscoveryData, NodeDiscoveryProvider};
+use crate::node_stats::NodeStatsStreamFactory;
 use act_zero::{call, Addr};
 use async_trait::async_trait;
 use log::{error, info};
@@ -65,6 +67,8 @@ pub struct Shared {
     node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
     cloud_provider: Addr<dyn CloudProvider>,
     dns_provider: Addr<dyn DnsProvider>,
+    node_stats_observer: Addr<dyn NodeStatsObserver>,
+    node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
     config: Config,
 }
 
@@ -131,6 +135,7 @@ pub struct Active {
     marked_as_active: bool,
     entered_state_at: Instant,
     last_discovered_at: Option<Instant>,
+    stats_streamer: Option<Addr<StatsStreamer>>,
 }
 
 impl Active {
@@ -140,6 +145,7 @@ impl Active {
             marked_as_active: false,
             entered_state_at: Instant::now(),
             last_discovered_at: None,
+            stats_streamer: None,
         }
     }
 
@@ -149,6 +155,7 @@ impl Active {
             marked_as_active: true,
             entered_state_at: Instant::now(),
             last_discovered_at: None,
+            stats_streamer: None,
         }
     }
 }
@@ -207,6 +214,8 @@ impl NodeMachine {
         node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
         cloud_provider: Addr<dyn CloudProvider>,
         dns_provider: Addr<dyn DnsProvider>,
+        node_stats_observer: Addr<dyn NodeStatsObserver>,
+        node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
         config: Config,
     ) -> Self {
         Self::Initializing(Data {
@@ -216,6 +225,8 @@ impl NodeMachine {
                 node_discovery_provider,
                 cloud_provider,
                 dns_provider,
+                node_stats_observer,
+                node_stats_stream_factory,
                 config,
             },
         })

@@ -1,7 +1,9 @@
 use super::*;
 
+use crate::node::controller::stats_streamer::StatsStreamer;
 use crate::node_discovery::NodeDiscoveryState;
 use act_zero::call;
+use act_zero::runtimes::tokio::spawn_actor;
 use log::error;
 
 impl MachineState for Active {}
@@ -47,6 +49,7 @@ impl Handler for Data<Active> {
                 })
             }
             _ if !self.state.marked_as_active => self.mark_as_active().await,
+            _ if self.state.stats_streamer.is_none() => self.start_stats_streamer(),
             _ => NodeMachine::Active(self),
         }
     }
@@ -81,5 +84,17 @@ impl Data<Active> {
         };
 
         Instant::now().duration_since(cmp_instant) >= self.shared.config.discovery_timeout
+    }
+
+    fn start_stats_streamer(mut self) -> NodeMachine {
+        info!("Start stats streamer actor {}", self.shared.hostname);
+
+        self.state.stats_streamer = Some(spawn_actor(StatsStreamer::new(
+            self.shared.hostname.clone(),
+            self.shared.node_stats_observer.clone(),
+            self.shared.node_stats_stream_factory.clone(),
+        )));
+
+        NodeMachine::Active(self)
     }
 }

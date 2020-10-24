@@ -1,9 +1,19 @@
 use act_zero::runtimes::tokio::spawn_actor;
-use edge_auto_scaler::node::{NodeController, NodeStats};
+use act_zero::{call, upcast, Actor, ActorResult, Produces};
+use async_trait::async_trait;
+use chrono::Utc;
+use edge_auto_scaler::cloud_provider::CloudNodeInfo;
+use edge_auto_scaler::node::{NodeController, NodeDrainingCause, NodeStats};
+use edge_auto_scaler::node_discovery::{
+    NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState,
+};
 use edge_auto_scaler::node_groups::discovery::FileBasedNodeGroupExplorer;
 use edge_auto_scaler::node_groups::NodeGroupsController;
+use edge_auto_scaler::node_stats::NodeStatsStreamFactory;
 use env_logger::Env;
 use futures::task::Context;
+use log::info;
+use std::net::IpAddr;
 use std::time::Duration;
 use tokio::macros::support::{Pin, Poll};
 use tokio::stream::Stream;
@@ -22,22 +32,54 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         node_groups_controller,
     ));
 
-    let _node_controller = spawn_actor(NodeController::new(
+    let node_discovery_provider = spawn_actor(MockNodeDiscovery);
+
+    let stream_factory = StreamFactory;
+
+    let node_controller = spawn_actor(NodeController::new(
         "demo".into(),
         Default::default(),
+        upcast!(node_discovery_provider),
         Default::default(),
         Default::default(),
-        Default::default(),
-        |_hostname| FixedNodeStatsStream {
-            interval: tokio::time::interval(Duration::from_millis(100)),
-        },
+        Box::new(stream_factory),
     ));
+
+    call!(node_controller.explored_node(CloudNodeInfo {
+        identifier: "fock".into(),
+        hostname: "demo".into(),
+        ip_addresses: vec!["127.0.0.1".parse().unwrap()],
+        created_at: Utc::now(),
+    }))
+    .await?;
+    call!(node_controller.discovered_node(NodeDiscoveryData {
+        hostname: "demo".into(),
+        state: NodeDiscoveryState::Ready,
+    }))
+    .await?;
+
+    call!(node_controller.activate_node()).await?;
+
+    tokio::time::delay_for(Duration::from_secs(15)).await;
+    call!(node_controller.deprovision_node(NodeDrainingCause::Scaling)).await;
 
     let mut interval = tokio::time::interval(Duration::from_secs(30));
     loop {
         tokio::select! {
             _ = interval.tick() => ()
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+struct StreamFactory;
+
+impl NodeStatsStreamFactory for StreamFactory {
+    fn create_stream(&self, hostname: String) -> Box<dyn Stream<Item = NodeStats> + Unpin + Send> {
+        info!("Creating NodeStatsStream for {}", hostname);
+        Box::new(FixedNodeStatsStream {
+            interval: tokio::time::interval(Duration::from_millis(100)),
+        })
     }
 }
 
@@ -56,5 +98,28 @@ impl Stream for FixedNodeStatsStream {
             })),
             Poll::Pending => Poll::Pending,
         }
+    }
+}
+
+impl Drop for FixedNodeStatsStream {
+    fn drop(&mut self) {
+        info!("Drop FixedNodeStatsStream");
+    }
+}
+
+struct MockNodeDiscovery;
+
+impl Actor for MockNodeDiscovery {}
+
+#[async_trait]
+impl NodeDiscoveryProvider for MockNodeDiscovery {
+    async fn update_state(
+        &mut self,
+        hostname: String,
+        state: NodeDiscoveryState,
+    ) -> ActorResult<()> {
+        info!("Updating state of node {} {:?}", hostname, state);
+
+        Produces::ok(())
     }
 }

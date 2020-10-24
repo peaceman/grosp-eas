@@ -1,10 +1,11 @@
 mod config;
 mod state_machine;
+mod stats_streamer;
 
-use crate::cloud_provider::CloudProvider;
+use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
 use crate::dns_provider::DnsProvider;
 use crate::node::controller::state_machine::{NodeMachine, NodeMachineEvent};
-use crate::node::{NodeStats, NodeStatsObserver};
+use crate::node::{NodeDrainingCause, NodeStats, NodeStatsObserver};
 use crate::node_discovery::{NodeDiscoveryData, NodeDiscoveryProvider};
 use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
@@ -14,27 +15,19 @@ use log::info;
 use std::time::Duration;
 use tokio::stream::{Stream, StreamExt};
 
+use crate::node_stats::NodeStatsStreamFactory;
 use config::Config;
+use stats_streamer::StatsStreamer;
 
-pub struct NodeController<NSS, NSSF>
-where
-    NSS: Stream<Item = NodeStats> + Send + Unpin + 'static,
-    NSSF: Fn(String) -> NSS + Send + Sync + 'static,
-{
+pub struct NodeController {
     hostname: String,
     addr: WeakAddr<Self>,
-    stats_observer: WeakAddr<dyn NodeStatsObserver>,
-    node_stats_source_factory: NSSF,
     node_machine_timer: Timer,
     node_machine: Option<NodeMachine>,
 }
 
 #[async_trait]
-impl<NSS, NSSF> Actor for NodeController<NSS, NSSF>
-where
-    NSS: Stream<Item = NodeStats> + Send + Unpin + 'static,
-    NSSF: Fn(String) -> NSS + Send + Sync + 'static,
-{
+impl Actor for NodeController {
     async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
@@ -46,20 +39,12 @@ where
         self.node_machine_timer
             .set_interval_weak(self.addr.clone(), Duration::from_secs(1));
 
-        // let weak_addr = addr.downgrade();
-        // let nss = (self.node_stats_source_factory)(self.hostname.clone());
-        // addr.send_fut(async move { Self::poll_stream(weak_addr, nss).await });
-
         Produces::ok(())
     }
 }
 
 #[async_trait]
-impl<NSS, NSSF> Tick for NodeController<NSS, NSSF>
-where
-    NSS: Stream<Item = NodeStats> + Send + Unpin + 'static,
-    NSSF: Fn(String) -> NSS + Send + Sync + 'static,
-{
+impl Tick for NodeController {
     async fn tick(&mut self) -> ActorResult<()> {
         if self.node_machine_timer.tick() {
             send!(self.addr.process_node_machine(None));
@@ -69,23 +54,17 @@ where
     }
 }
 
-impl<NSS, NSSF> NodeController<NSS, NSSF>
-where
-    NSS: Stream<Item = NodeStats> + Send + Unpin + 'static,
-    NSSF: Fn(String) -> NSS + Send + Sync + 'static,
-{
+impl NodeController {
     pub fn new(
         hostname: String,
-        stats_observer: WeakAddr<dyn NodeStatsObserver>,
+        node_stats_observer: Addr<dyn NodeStatsObserver>,
         node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
         cloud_provider: Addr<dyn CloudProvider>,
         dns_provider: Addr<dyn DnsProvider>,
-        nss_factory: NSSF,
+        node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
     ) -> Self {
         Self {
             hostname: hostname.clone(),
-            stats_observer,
-            node_stats_source_factory: nss_factory,
             addr: Default::default(),
             node_machine_timer: Default::default(),
             node_machine: Some(NodeMachine::new(
@@ -93,6 +72,8 @@ where
                 node_discovery_provider,
                 cloud_provider,
                 dns_provider,
+                node_stats_observer,
+                node_stats_stream_factory,
                 Config {
                     draining_time: Duration::from_secs(2 * 60),
                     provisioning_timeout: Duration::from_secs(10 * 60),
@@ -112,22 +93,23 @@ where
             .await;
     }
 
+    pub async fn explored_node(&mut self, node_info: CloudNodeInfo) {
+        self.process_node_machine(Some(NodeMachineEvent::ExploredNode { node_info }))
+            .await;
+    }
+
+    pub async fn activate_node(&mut self) {
+        self.process_node_machine(Some(NodeMachineEvent::ActivateNode))
+            .await;
+    }
+
+    pub async fn deprovision_node(&mut self, cause: NodeDrainingCause) {
+        self.process_node_machine(Some(NodeMachineEvent::DeprovisionNode { cause }))
+            .await;
+    }
+
     async fn stop(&mut self) -> ActorResult<()> {
         Produces::ok(())
-    }
-
-    async fn publish_stats(&self, stats: NodeStats) -> ActorResult<()> {
-        info!("Publish stats {:?}", stats);
-
-        send!(self.stats_observer.observe_node_stats(stats));
-
-        Produces::ok(())
-    }
-
-    async fn poll_stream(addr: WeakAddr<Self>, mut stats_stream: NSS) {
-        while let Some(stats) = stats_stream.next().await {
-            send!(addr.publish_stats(stats));
-        }
     }
 
     async fn process_node_machine(&mut self, event: Option<NodeMachineEvent>) {
