@@ -26,7 +26,7 @@ impl Handler for Data<Provisioning> {
                 match discovery_data.state {
                     NodeDiscoveryState::Ready => NodeMachine::Ready(Data {
                         shared: self.shared,
-                        state: Ready { node_info },
+                        state: Ready::new(node_info),
                     }),
                     _ => NodeMachine::Deprovisioning(Data {
                         shared: self.shared,

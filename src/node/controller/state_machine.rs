@@ -111,6 +111,18 @@ impl Discovering {
 #[derive(Debug)]
 pub struct Ready {
     node_info: CloudNodeInfo,
+    entered_state_at: Instant,
+    last_discovered_at: Option<Instant>,
+}
+
+impl Ready {
+    fn new(node_info: CloudNodeInfo) -> Self {
+        Self {
+            node_info,
+            entered_state_at: Instant::now(),
+            last_discovered_at: None,
+        }
+    }
 }
 
 #[derive(Debug)]

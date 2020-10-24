@@ -17,9 +17,7 @@ impl Handler for Data<Discovering> {
                 match discovery_data.state {
                     NodeDiscoveryState::Ready => NodeMachine::Ready(Data {
                         shared: self.shared,
-                        state: Ready {
-                            node_info: self.state.node_info,
-                        },
+                        state: Ready::new(self.state.node_info),
                     }),
                     NodeDiscoveryState::Active => NodeMachine::Active(Data {
                         shared: self.shared,
