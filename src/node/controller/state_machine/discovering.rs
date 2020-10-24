@@ -1,4 +1,5 @@
 use super::*;
+use crate::node_discovery::NodeDiscoveryState;
 use async_trait::async_trait;
 
 impl MachineState for Discovering {}
@@ -7,6 +8,32 @@ impl MachineState for Discovering {}
 impl Handler for Data<Discovering> {
     async fn handle(self, event: Option<NodeMachineEvent>) -> NodeMachine {
         match event {
+            Some(NodeMachineEvent::DiscoveredNode { discovery_data }) => {
+                info!(
+                    "Discovered explored node {} {:?}",
+                    self.shared.hostname, discovery_data
+                );
+
+                match discovery_data.state {
+                    NodeDiscoveryState::Ready => NodeMachine::Ready(Data {
+                        shared: self.shared,
+                        state: Ready {
+                            node_info: self.state.node_info,
+                        },
+                    }),
+                    NodeDiscoveryState::Active => NodeMachine::Active(Data {
+                        shared: self.shared,
+                        state: Active {
+                            node_info: self.state.node_info,
+                            marked_as_active: true,
+                        },
+                    }),
+                    NodeDiscoveryState::Draining(cause) => NodeMachine::Draining(Data {
+                        shared: self.shared,
+                        state: Draining::new(self.state.node_info, cause),
+                    }),
+                }
+            }
             _ if self.reached_discovery_timeout() => {
                 info!(
                     "Node reached discovery timeout {} {:?}",
