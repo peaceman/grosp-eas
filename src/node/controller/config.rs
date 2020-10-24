@@ -4,4 +4,5 @@ use std::time::Duration;
 pub struct Config {
     pub provisioning_timeout: Duration,
     pub draining_time: Duration,
+    pub discovery_timeout: Duration,
 }

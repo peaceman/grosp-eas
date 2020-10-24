@@ -96,11 +96,15 @@ pub struct Exploring {
 #[derive(Debug)]
 pub struct Discovering {
     node_info: CloudNodeInfo,
+    entered_state_at: Instant,
 }
 
 impl Discovering {
     fn new(node_info: CloudNodeInfo) -> Self {
-        Self { node_info }
+        Self {
+            node_info,
+            entered_state_at: Instant::now(),
+        }
     }
 }
 

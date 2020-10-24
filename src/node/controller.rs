@@ -96,6 +96,7 @@ where
                 Config {
                     draining_time: Duration::from_secs(2 * 60),
                     provisioning_timeout: Duration::from_secs(10 * 60),
+                    discovery_timeout: Duration::from_secs(10 * 60),
                 },
             )),
         }
