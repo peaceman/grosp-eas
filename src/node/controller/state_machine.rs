@@ -1,6 +1,7 @@
 mod active;
 mod deprovisioned;
 mod deprovisioning;
+mod discovering;
 mod draining;
 mod exploring;
 mod initializing;
@@ -29,6 +30,7 @@ pub enum NodeMachine {
     Initializing(Data<Initializing>),
     Provisioning(Data<Provisioning>),
     Exploring(Data<Exploring>),
+    Discovering(Data<Discovering>),
     Ready(Data<Ready>),
     Active(Data<Active>),
     Draining(Data<Draining>),
@@ -39,6 +41,7 @@ pub enum NodeMachine {
 pub enum NodeMachineEvent {
     ProvisionNode,
     DiscoveredNode { discovery_data: NodeDiscoveryData },
+    ExploredNode { node_info: CloudNodeInfo },
     ActivateNode,
     DeprovisionNode { cause: NodeDrainingCause },
 }
@@ -75,9 +78,30 @@ pub struct Provisioning {
     created_dns_records: bool,
 }
 
+impl Provisioning {
+    fn new() -> Self {
+        Self {
+            node_info: None,
+            entered_state_at: Instant::now(),
+            created_dns_records: false,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Exploring {
     pub discovery_data: NodeDiscoveryData,
+}
+
+#[derive(Debug)]
+pub struct Discovering {
+    node_info: CloudNodeInfo,
+}
+
+impl Discovering {
+    fn new(node_info: CloudNodeInfo) -> Self {
+        Self { node_info }
+    }
 }
 
 #[derive(Debug)]
@@ -164,6 +188,7 @@ impl NodeMachine {
             Self::Initializing(m) => m.handle(event).await,
             Self::Provisioning(m) => m.handle(event).await,
             Self::Exploring(m) => m.handle(event).await,
+            Self::Discovering(m) => m.handle(event).await,
             Self::Ready(m) => m.handle(event).await,
             Self::Active(m) => m.handle(event).await,
             Self::Draining(m) => m.handle(event).await,

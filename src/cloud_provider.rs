@@ -6,6 +6,7 @@ use std::net::IpAddr;
 #[derive(Debug, Clone)]
 pub struct CloudNodeInfo {
     pub identifier: String,
+    pub hostname: String,
     pub created_at: DateTime<Utc>,
     pub ip_addresses: Vec<IpAddr>,
 }
