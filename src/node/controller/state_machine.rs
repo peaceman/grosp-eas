@@ -170,6 +170,15 @@ impl Draining {
             entered_state_at: Instant::now(),
         }
     }
+
+    fn new_marked(node_info: CloudNodeInfo, cause: NodeDrainingCause) -> Self {
+        Self {
+            node_info,
+            cause,
+            marked_as_draining: true,
+            entered_state_at: Instant::now(),
+        }
+    }
 }
 
 #[derive(Debug)]

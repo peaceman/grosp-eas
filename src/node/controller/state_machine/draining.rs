@@ -1,4 +1,7 @@
 use super::*;
+use crate::node_discovery::NodeDiscoveryState;
+use act_zero::call;
+use log::error;
 
 impl MachineState for Draining {}
 
@@ -25,6 +28,7 @@ impl Handler for Data<Draining> {
                     state: Active::new(self.state.node_info),
                 })
             }
+            _ if !self.state.marked_as_draining => self.mark_as_draining().await,
             _ => NodeMachine::Draining(self),
         }
     }
@@ -34,5 +38,26 @@ impl Data<Draining> {
     fn reached_draining_time(&self) -> bool {
         Instant::now().duration_since(self.state.entered_state_at)
             >= self.shared.config.draining_time
+    }
+
+    async fn mark_as_draining(mut self) -> NodeMachine {
+        info!("Mark node as draining {}", self.shared.hostname);
+
+        let update_state_result = call!(self.shared.node_discovery_provider.update_state(
+            self.shared.hostname.clone(),
+            NodeDiscoveryState::Draining(self.state.cause)
+        ))
+        .await;
+
+        if let Err(e) = update_state_result {
+            error!(
+                "Failed to mark node as draining {} {:?}",
+                self.shared.hostname, e
+            );
+        } else {
+            self.state.marked_as_draining = true;
+        }
+
+        NodeMachine::Draining(self)
     }
 }

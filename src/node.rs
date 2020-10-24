@@ -18,7 +18,7 @@ pub trait NodeStatsObserver: Actor {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum NodeDrainingCause {
     Scaling,
     RollingUpdate,

@@ -25,7 +25,7 @@ impl Handler for Data<Discovering> {
                     }),
                     NodeDiscoveryState::Draining(cause) => NodeMachine::Draining(Data {
                         shared: self.shared,
-                        state: Draining::new(self.state.node_info, cause),
+                        state: Draining::new_marked(self.state.node_info, cause),
                     }),
                 }
             }
