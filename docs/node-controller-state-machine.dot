@@ -1,0 +1,38 @@
+digraph node_controller_state_machine {
+    initializing [label="Initializing", shape=box]
+    provisioning [label="Provisioning", shape=box]
+    exploring [label="Exploring", shape=box]
+    discovering [label="Discovering", shape=box]
+    ready [label="Ready", shape=box]
+    active [label="Active", shape=box]
+    draining [label="Draining", shape=box]
+    deprovisioning [label="De-Provisioning", shape=box]
+    deprovisioned [label="De-Provisioned", shape=box]
+
+    initializing -> provisioning
+    initializing -> discovering
+    initializing -> exploring
+
+    provisioning -> ready
+    provisioning -> deprovisioning
+
+    exploring -> ready
+    exploring -> active
+    exploring -> draining
+
+    discovering -> ready
+    discovering -> active
+    discovering -> draining
+    discovering -> deprovisioning
+
+    ready -> active
+    ready -> deprovisioning
+
+    active -> draining
+    active -> deprovisioning
+
+    draining -> active
+    draining -> deprovisioning
+
+    deprovisioning -> deprovisioned
+}
