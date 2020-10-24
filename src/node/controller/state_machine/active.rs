@@ -21,6 +21,31 @@ impl Handler for Data<Active> {
                     state: Draining::new(self.state.node_info, cause),
                 })
             }
+            Some(NodeMachineEvent::DiscoveredNode {
+                discovery_data:
+                    NodeDiscoveryData {
+                        state: NodeDiscoveryState::Active,
+                        ..
+                    },
+            }) => {
+                info!("Discovered active node {}", self.shared.hostname);
+
+                NodeMachine::Active(Data {
+                    shared: self.shared,
+                    state: Active {
+                        last_discovered_at: Some(Instant::now()),
+                        ..self.state
+                    },
+                })
+            }
+            _ if self.reached_discovery_timeout() => {
+                info!("Reached node discovery timeout {}", self.shared.hostname);
+
+                NodeMachine::Deprovisioning(Data {
+                    shared: self.shared,
+                    state: Deprovisioning::new(Some(self.state.node_info)),
+                })
+            }
             _ if !self.state.marked_as_active => self.mark_as_active().await,
             _ => NodeMachine::Active(self),
         }
@@ -47,5 +72,14 @@ impl Data<Active> {
         }
 
         NodeMachine::Active(self)
+    }
+
+    fn reached_discovery_timeout(&self) -> bool {
+        let cmp_instant = match self.state.last_discovered_at {
+            Some(v) => v,
+            None => self.state.entered_state_at,
+        };
+
+        Instant::now().duration_since(cmp_instant) >= self.shared.config.discovery_timeout
     }
 }

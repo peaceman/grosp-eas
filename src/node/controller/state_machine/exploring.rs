@@ -31,10 +31,7 @@ impl Data<Exploring> {
                 }),
                 NodeDiscoveryState::Active => NodeMachine::Active(Data {
                     shared: self.shared,
-                    state: Active {
-                        node_info,
-                        marked_as_active: true,
-                    },
+                    state: Active::new_marked(node_info),
                 }),
                 NodeDiscoveryState::Draining(cause) => NodeMachine::Draining(Data {
                     shared: self.shared,

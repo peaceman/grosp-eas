@@ -129,6 +129,8 @@ impl Ready {
 pub struct Active {
     node_info: CloudNodeInfo,
     marked_as_active: bool,
+    entered_state_at: Instant,
+    last_discovered_at: Option<Instant>,
 }
 
 impl Active {
@@ -136,6 +138,17 @@ impl Active {
         Self {
             node_info,
             marked_as_active: false,
+            entered_state_at: Instant::now(),
+            last_discovered_at: None,
+        }
+    }
+
+    fn new_marked(node_info: CloudNodeInfo) -> Self {
+        Self {
+            node_info,
+            marked_as_active: true,
+            entered_state_at: Instant::now(),
+            last_discovered_at: None,
         }
     }
 }
