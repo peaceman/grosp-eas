@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use edge_auto_scaler::cloud_provider::CloudNodeInfo;
 use edge_auto_scaler::node::discovery::{
-    NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState,
+    FileNodeDiscovery, NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState,
 };
 use edge_auto_scaler::node::stats::NodeStatsStreamFactory;
 use edge_auto_scaler::node::{NodeController, NodeDrainingCause, NodeStats};
@@ -31,6 +31,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "node_groups",
         upcast!(node_groups_controller),
     ));
+    let _node_discovery = spawn_actor(FileNodeDiscovery::new("nodes", Default::default()));
 
     let node_discovery_provider = spawn_actor(MockNodeDiscovery);
 

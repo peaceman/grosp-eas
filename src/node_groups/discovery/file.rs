@@ -2,6 +2,7 @@ use log::info;
 
 use crate::node_groups::discovery::NodeGroupDiscoveryObserver;
 use crate::node_groups::NodeGroup;
+use crate::utils;
 use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
 use act_zero::{send, Actor, ActorResult, Addr, Produces, WeakAddr};
@@ -72,7 +73,7 @@ impl Drop for FileNodeGroupDiscovery {
 
 impl FileNodeGroupDiscovery {
     async fn discover(&self) {
-        info!("Start discovery");
+        info!("Start discovery {}", self);
 
         let node_groups = scan_for_node_groups(&self.directory_path).await;
 
@@ -83,7 +84,7 @@ impl FileNodeGroupDiscovery {
                 .observe_node_group_discovery(node_group));
         }
 
-        info!("Finished discovery");
+        info!("Finished discovery {}", self);
     }
 }
 
@@ -91,30 +92,10 @@ impl std::fmt::Display for FileNodeGroupDiscovery {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "FileBasedNodeGroupExplorer ({})",
+            "FileNodeGroupDiscovery ({})",
             self.directory_path.to_string_lossy()
         )
     }
-}
-
-async fn parse_node_group_files(files: Vec<DirEntry>) -> anyhow::Result<Vec<NodeGroup>> {
-    let mut handles = files
-        .iter()
-        .map(|file| {
-            let path = file.path();
-            tokio::task::spawn_blocking(move || parse_node_group_file(path))
-        })
-        .collect::<FuturesUnordered<_>>();
-
-    let mut node_groups = vec![];
-
-    while let Some(join_handle_result) = handles.next().await {
-        if let Ok(Ok(node_group)) = join_handle_result {
-            node_groups.push(node_group);
-        }
-    }
-
-    Ok(node_groups)
 }
 
 fn parse_node_group_file(path: impl AsRef<Path>) -> anyhow::Result<NodeGroup> {
@@ -126,30 +107,8 @@ fn parse_node_group_file(path: impl AsRef<Path>) -> anyhow::Result<NodeGroup> {
 }
 
 async fn scan_for_node_groups(path: impl AsRef<Path>) -> Vec<NodeGroup> {
-    scan_for_files(&path)
-        .and_then(parse_node_group_files)
+    utils::scan_for_files(&path)
+        .and_then(|files| utils::parse_files(files, parse_node_group_file))
         .await
         .unwrap_or_else(|_| vec![])
-}
-
-async fn scan_for_files(path: impl AsRef<Path>) -> anyhow::Result<Vec<DirEntry>> {
-    let dir_entries = tokio::fs::read_dir(path).await?;
-
-    let files_in_folder = dir_entries
-        .filter_map(|e| async {
-            if let Ok(dir_entry) = e {
-                dir_entry
-                    .file_type()
-                    .await
-                    .ok()
-                    .filter(|file_type| file_type.is_file())
-                    .map(|_| dir_entry)
-            } else {
-                None
-            }
-        })
-        .collect()
-        .await;
-
-    Ok(files_in_folder)
 }

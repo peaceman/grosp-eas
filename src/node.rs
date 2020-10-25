@@ -1,5 +1,6 @@
 use act_zero::{Actor, ActorResult, Produces};
 use async_trait::async_trait;
+use serde::Deserialize;
 
 mod controller;
 pub mod discovery;
@@ -20,7 +21,7 @@ pub trait NodeStatsObserver: Actor {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Deserialize)]
 pub enum NodeDrainingCause {
     Scaling,
     RollingUpdate,
