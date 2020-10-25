@@ -2,6 +2,8 @@ use act_zero::{Actor, ActorResult, Produces};
 use async_trait::async_trait;
 
 mod controller;
+pub mod discovery;
+pub mod stats;
 
 pub use controller::NodeController;
 

@@ -1,5 +1,5 @@
+use crate::node::stats::NodeStatsStreamFactory;
 use crate::node::{NodeStats, NodeStatsObserver};
-use crate::node_stats::NodeStatsStreamFactory;
 use act_zero::{call, send, Actor, ActorResult, Addr, AddrLike, Produces, WeakAddr};
 use async_trait::async_trait;
 use log::{info, trace};

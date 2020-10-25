@@ -1,5 +1,5 @@
 use super::*;
-use crate::node_discovery::NodeDiscoveryState;
+use crate::node::discovery::NodeDiscoveryState;
 
 impl MachineState for Ready {}
 

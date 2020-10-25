@@ -3,13 +3,13 @@ use act_zero::{call, upcast, Actor, ActorResult, Produces};
 use async_trait::async_trait;
 use chrono::Utc;
 use edge_auto_scaler::cloud_provider::CloudNodeInfo;
-use edge_auto_scaler::node::{NodeController, NodeDrainingCause, NodeStats};
-use edge_auto_scaler::node_discovery::{
+use edge_auto_scaler::node::discovery::{
     NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState,
 };
+use edge_auto_scaler::node::stats::NodeStatsStreamFactory;
+use edge_auto_scaler::node::{NodeController, NodeDrainingCause, NodeStats};
 use edge_auto_scaler::node_groups::discovery::FileNodeGroupDiscovery;
 use edge_auto_scaler::node_groups::NodeGroupsController;
-use edge_auto_scaler::node_stats::NodeStatsStreamFactory;
 use env_logger::Env;
 use futures::task::Context;
 use log::info;

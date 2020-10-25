@@ -11,6 +11,11 @@ pub trait NodeDiscoveryProvider: Actor {
     ) -> ActorResult<()>;
 }
 
+#[async_trait]
+pub trait NodeDiscoveryObserver: Actor {
+    async fn observe_node_discovery(&mut self, data: NodeDiscoveryData);
+}
+
 #[derive(Debug)]
 pub struct NodeDiscoveryData {
     pub hostname: String,
