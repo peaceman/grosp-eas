@@ -1,6 +1,7 @@
 use log::info;
 
-use crate::node_groups::{NodeGroup, NodeGroupsController};
+use crate::node_groups::discovery::NodeGroupDiscoveryObserver;
+use crate::node_groups::NodeGroup;
 use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
 use act_zero::{send, Actor, ActorResult, Addr, Produces, WeakAddr};
@@ -14,21 +15,21 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tokio::fs::DirEntry;
 
-pub struct FileBasedNodeGroupExplorer {
+pub struct FileNodeGroupDiscovery {
     directory_path: PathBuf,
-    node_groups_controller: Addr<NodeGroupsController>,
+    discovery_observer: Addr<dyn NodeGroupDiscoveryObserver>,
     timer: Timer,
     addr: WeakAddr<Self>,
 }
 
-impl FileBasedNodeGroupExplorer {
+impl FileNodeGroupDiscovery {
     pub fn new(
         directory_path: impl AsRef<Path>,
-        node_groups_controller: Addr<NodeGroupsController>,
+        discovery_observer: Addr<dyn NodeGroupDiscoveryObserver>,
     ) -> Self {
-        FileBasedNodeGroupExplorer {
+        FileNodeGroupDiscovery {
             directory_path: directory_path.as_ref().into(),
-            node_groups_controller,
+            discovery_observer,
             timer: Default::default(),
             addr: Default::default(),
         }
@@ -36,7 +37,7 @@ impl FileBasedNodeGroupExplorer {
 }
 
 #[async_trait]
-impl Actor for FileBasedNodeGroupExplorer {
+impl Actor for FileNodeGroupDiscovery {
     async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
@@ -53,7 +54,7 @@ impl Actor for FileBasedNodeGroupExplorer {
 }
 
 #[async_trait]
-impl Tick for FileBasedNodeGroupExplorer {
+impl Tick for FileNodeGroupDiscovery {
     async fn tick(&mut self) -> ActorResult<()> {
         if self.timer.tick() {
             send!(self.addr.discover());
@@ -63,13 +64,13 @@ impl Tick for FileBasedNodeGroupExplorer {
     }
 }
 
-impl Drop for FileBasedNodeGroupExplorer {
+impl Drop for FileNodeGroupDiscovery {
     fn drop(&mut self) {
         info!("Drop {}", self);
     }
 }
 
-impl FileBasedNodeGroupExplorer {
+impl FileNodeGroupDiscovery {
     async fn discover(&self) {
         info!("Start discovery");
 
@@ -78,15 +79,15 @@ impl FileBasedNodeGroupExplorer {
         for node_group in node_groups.into_iter() {
             info!("Discovered node group: {:?}", node_group);
             send!(self
-                .node_groups_controller
-                .discovered_node_group(node_group));
+                .discovery_observer
+                .observe_node_group_discovery(node_group));
         }
 
         info!("Finished discovery");
     }
 }
 
-impl std::fmt::Display for FileBasedNodeGroupExplorer {
+impl std::fmt::Display for FileNodeGroupDiscovery {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,

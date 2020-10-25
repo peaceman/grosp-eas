@@ -1,6 +1,7 @@
 mod state_machine;
 
 use crate::node_groups::controller::state_machine::NodeGroupMachine;
+use crate::node_groups::discovery::NodeGroupDiscoveryObserver;
 use crate::node_groups::scaler::NodeGroupScaler;
 use crate::node_groups::NodeGroup;
 use act_zero::runtimes::tokio::Timer;
@@ -77,8 +78,9 @@ impl Tick for NodeGroupsController {
     }
 }
 
-impl NodeGroupsController {
-    pub async fn discovered_node_group(&mut self, node_group: NodeGroup) {
+#[async_trait]
+impl NodeGroupDiscoveryObserver for NodeGroupsController {
+    async fn observe_node_group_discovery(&mut self, node_group: NodeGroup) {
         match self.node_groups.get_mut(&node_group.name) {
             Some(ngmo) => {
                 info!("Discovered already known node group {:?}", &node_group.name);
@@ -94,7 +96,9 @@ impl NodeGroupsController {
             }
         }
     }
+}
 
+impl NodeGroupsController {
     async fn process_node_groups(&mut self) {
         info!("Process node groups");
 

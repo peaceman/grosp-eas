@@ -7,7 +7,7 @@ use edge_auto_scaler::node::{NodeController, NodeDrainingCause, NodeStats};
 use edge_auto_scaler::node_discovery::{
     NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState,
 };
-use edge_auto_scaler::node_groups::discovery::FileBasedNodeGroupExplorer;
+use edge_auto_scaler::node_groups::discovery::FileNodeGroupDiscovery;
 use edge_auto_scaler::node_groups::NodeGroupsController;
 use edge_auto_scaler::node_stats::NodeStatsStreamFactory;
 use env_logger::Env;
@@ -27,9 +27,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logging();
 
     let node_groups_controller = spawn_actor(NodeGroupsController::new());
-    let _explorer = spawn_actor(FileBasedNodeGroupExplorer::new(
+    let _node_group_discovery = spawn_actor(FileNodeGroupDiscovery::new(
         "node_groups",
-        node_groups_controller,
+        upcast!(node_groups_controller),
     ));
 
     let node_discovery_provider = spawn_actor(MockNodeDiscovery);
