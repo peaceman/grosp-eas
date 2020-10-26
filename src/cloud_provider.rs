@@ -1,9 +1,10 @@
 use act_zero::{Actor, ActorResult};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use serde::Deserialize;
 use std::net::IpAddr;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct CloudNodeInfo {
     pub identifier: String,
     pub hostname: String,

@@ -6,6 +6,7 @@ use edge_auto_scaler::cloud_provider::CloudNodeInfo;
 use edge_auto_scaler::node::discovery::{
     FileNodeDiscovery, NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState,
 };
+use edge_auto_scaler::node::exploration::FileNodeExploration;
 use edge_auto_scaler::node::stats::NodeStatsStreamFactory;
 use edge_auto_scaler::node::{NodeController, NodeDrainingCause, NodeStats};
 use edge_auto_scaler::node_groups::discovery::FileNodeGroupDiscovery;
@@ -28,10 +29,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let node_groups_controller = spawn_actor(NodeGroupsController::new());
     let _node_group_discovery = spawn_actor(FileNodeGroupDiscovery::new(
-        "node_groups",
+        "test_files/node_groups",
         upcast!(node_groups_controller),
     ));
-    let _node_discovery = spawn_actor(FileNodeDiscovery::new("nodes", Default::default()));
+    let _node_exploration = spawn_actor(FileNodeExploration::new(
+        "test_files/node_exploration",
+        Default::default(),
+    ));
+    let _node_discovery = spawn_actor(FileNodeDiscovery::new(
+        "test_files/node_discovery",
+        Default::default(),
+    ));
 
     let node_discovery_provider = spawn_actor(MockNodeDiscovery);
 
