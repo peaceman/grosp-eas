@@ -1,4 +1,5 @@
 use futures::stream::{FuturesUnordered, StreamExt};
+use log::error;
 use std::path::{Path, PathBuf};
 use tokio::fs::DirEntry;
 
@@ -39,8 +40,10 @@ pub async fn parse_files<T: 'static + Send>(
     let mut results = vec![];
 
     while let Some(join_handle_result) = handles.next().await {
-        if let Ok(Ok(result)) = join_handle_result {
-            results.push(result);
+        match join_handle_result {
+            Ok(Ok(result)) => results.push(result),
+            Ok(Err(e)) => error!("ParseError: {:?}", e),
+            _ => (),
         }
     }
 

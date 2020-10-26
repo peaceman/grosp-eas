@@ -45,7 +45,7 @@ impl NodeGroupsController {
     ) -> Self {
         NodeGroupsController {
             node_groups: HashMap::new(),
-            node_group_max_retain_time: Duration::from_secs(10),
+            node_group_max_retain_time: Duration::from_secs(60 * 2),
             timer: Timer::default(),
             addr: Default::default(),
             node_discovery_provider,
@@ -136,9 +136,7 @@ impl NodeDiscoveryObserver for NodeGroupsController {
                 );
 
                 let group_name = data.group.clone();
-                let ngm = self
-                    .create_initialized_node_group_machine(&group_name)
-                    .await;
+                let ngm = self.create_running_node_group_machine(&group_name).await;
 
                 let ngm = ngm
                     .handle(Some(state_machine::Event::DiscoveredNode {
@@ -170,9 +168,7 @@ impl NodeExplorationObserver for NodeGroupsController {
                 );
 
                 let group_name = node_info.group.clone();
-                let ngm = self
-                    .create_initialized_node_group_machine(&group_name)
-                    .await;
+                let ngm = self.create_running_node_group_machine(&group_name).await;
 
                 let ngm = ngm
                     .handle(Some(state_machine::Event::ExploredNode { node_info }))
@@ -209,7 +205,7 @@ impl NodeGroupsController {
         })
     }
 
-    async fn create_initialized_node_group_machine(
+    async fn create_running_node_group_machine(
         &self,
         group_name: impl AsRef<str>,
     ) -> NodeGroupMachine {

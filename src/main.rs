@@ -27,58 +27,57 @@ fn init_logging() {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logging();
 
+    let stream_factory = Box::new(StreamFactory);
+    let node_discovery_provider = spawn_actor(MockNodeDiscovery);
+
     let node_groups_controller = spawn_actor(NodeGroupsController::new(
+        upcast!(node_discovery_provider),
         Default::default(),
         Default::default(),
-        Default::default(),
-        Box::new(StreamFactory),
+        stream_factory.clone(),
     ));
 
     let _node_group_discovery = spawn_actor(FileNodeGroupDiscovery::new(
         "test_files/node_groups",
-        upcast!(node_groups_controller),
+        upcast!(node_groups_controller.clone()),
     ));
     let _node_exploration = spawn_actor(FileNodeExploration::new(
         "test_files/node_exploration",
-        Default::default(),
+        upcast!(node_groups_controller.clone()),
     ));
     let _node_discovery = spawn_actor(FileNodeDiscovery::new(
         "test_files/node_discovery",
-        Default::default(),
+        upcast!(node_groups_controller.clone()),
     ));
 
-    let node_discovery_provider = spawn_actor(MockNodeDiscovery);
-
-    let stream_factory = StreamFactory;
-
-    let node_controller = spawn_actor(NodeController::new(
-        "demo".into(),
-        Default::default(),
-        upcast!(node_discovery_provider),
-        Default::default(),
-        Default::default(),
-        Box::new(stream_factory),
-    ));
-
-    call!(node_controller.explored_node(CloudNodeInfo {
-        identifier: "fock".into(),
-        hostname: "demo".into(),
-        group: "lel".into(),
-        ip_addresses: vec!["127.0.0.1".parse().unwrap()],
-        created_at: Utc::now(),
-    }))
-    .await?;
-    call!(node_controller.discovered_node(NodeDiscoveryData {
-        group: "lel".into(),
-        hostname: "demo".into(),
-        state: NodeDiscoveryState::Ready,
-    }))
-    .await?;
-
-    call!(node_controller.activate_node()).await?;
-
-    tokio::time::delay_for(Duration::from_secs(15)).await;
-    call!(node_controller.deprovision_node(NodeDrainingCause::Scaling)).await;
+    // let node_controller = spawn_actor(NodeController::new(
+    //     "demo".into(),
+    //     Default::default(),
+    //     upcast!(node_discovery_provider),
+    //     Default::default(),
+    //     Default::default(),
+    //     stream_factory.clone(),
+    // ));
+    //
+    // call!(node_controller.explored_node(CloudNodeInfo {
+    //     identifier: "fock".into(),
+    //     hostname: "demo".into(),
+    //     group: "lel".into(),
+    //     ip_addresses: vec!["127.0.0.1".parse().unwrap()],
+    //     created_at: Utc::now(),
+    // }))
+    // .await?;
+    // call!(node_controller.discovered_node(NodeDiscoveryData {
+    //     group: "lel".into(),
+    //     hostname: "demo".into(),
+    //     state: NodeDiscoveryState::Ready,
+    // }))
+    // .await?;
+    //
+    // call!(node_controller.activate_node()).await?;
+    //
+    // tokio::time::delay_for(Duration::from_secs(15)).await;
+    // call!(node_controller.deprovision_node(NodeDrainingCause::Scaling)).await;
 
     let mut interval = tokio::time::interval(Duration::from_secs(30));
     loop {

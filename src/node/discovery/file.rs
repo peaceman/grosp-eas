@@ -5,7 +5,7 @@ use act_zero::timer::Tick;
 use act_zero::{send, Actor, ActorResult, Addr, Produces, WeakAddr};
 use async_trait::async_trait;
 use futures::TryFutureExt;
-use log::info;
+use log::{error, info};
 use std::fmt;
 use std::fs::File;
 use std::io::BufReader;
