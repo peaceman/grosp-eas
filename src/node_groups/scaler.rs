@@ -1,12 +1,18 @@
-use crate::cloud_provider::CloudNodeInfo;
-use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryObserver};
+use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
+use crate::dns_provider::DnsProvider;
+use crate::node::discovery::{
+    NodeDiscoveryData, NodeDiscoveryObserver, NodeDiscoveryProvider, NodeDiscoveryState,
+};
 use crate::node::exploration::NodeExplorationObserver;
+use crate::node::stats::NodeStatsStreamFactory;
+use crate::node::{NodeController, NodeState, NodeStats};
 use crate::node_groups::NodeGroup;
-use act_zero::runtimes::tokio::Timer;
+use act_zero::runtimes::tokio::{spawn_actor, Timer};
 use act_zero::timer::Tick;
 use act_zero::{send, Actor, ActorResult, Addr, Produces, WeakAddr};
 use async_trait::async_trait;
 use log::info;
+use std::collections::HashMap;
 use std::fmt;
 use std::time::Duration;
 
@@ -15,15 +21,37 @@ pub struct NodeGroupScaler {
     should_terminate: bool,
     timer: Timer,
     addr: WeakAddr<Self>,
+    nodes: HashMap<String, ScalingNode>,
+    node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
+    cloud_provider: Addr<dyn CloudProvider>,
+    dns_provider: Addr<dyn DnsProvider>,
+    node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
+}
+
+struct ScalingNode {
+    controller: Addr<NodeController>,
+    last_stats: Option<NodeStats>,
+    state: NodeState,
 }
 
 impl NodeGroupScaler {
-    pub fn new(node_group: NodeGroup) -> Self {
+    pub fn new(
+        node_group: NodeGroup,
+        node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
+        cloud_provider: Addr<dyn CloudProvider>,
+        dns_provider: Addr<dyn DnsProvider>,
+        node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
+    ) -> Self {
         NodeGroupScaler {
             node_group,
             should_terminate: false,
             timer: Default::default(),
             addr: Default::default(),
+            nodes: Default::default(),
+            node_discovery_provider,
+            cloud_provider,
+            dns_provider,
+            node_stats_stream_factory,
         }
     }
 }
@@ -71,7 +99,27 @@ impl Drop for NodeGroupScaler {
 #[async_trait]
 impl NodeDiscoveryObserver for NodeGroupScaler {
     async fn observe_node_discovery(&mut self, data: NodeDiscoveryData) {
-        unimplemented!()
+        if !self.nodes.contains_key(&data.hostname) {
+            let node_controller = NodeController::new(
+                data.hostname.clone(),
+                Default::default(), // todo add real node stats observer
+                self.node_discovery_provider.clone(),
+                self.cloud_provider.clone(),
+                self.dns_provider.clone(),
+                self.node_stats_stream_factory.clone(),
+            );
+
+            let node = ScalingNode {
+                state: NodeState::Unready,
+                last_stats: None,
+                controller: spawn_actor(node_controller),
+            };
+
+            self.nodes.insert(data.hostname.clone(), node);
+        }
+
+        let node = self.nodes.get(&data.hostname).unwrap();
+        send!(node.controller.discovered_node(data));
     }
 }
 

@@ -1,8 +1,10 @@
 mod state_machine;
 
-use crate::cloud_provider::CloudNodeInfo;
-use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryObserver};
+use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
+use crate::dns_provider::DnsProvider;
+use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryObserver, NodeDiscoveryProvider};
 use crate::node::exploration::NodeExplorationObserver;
+use crate::node::stats::NodeStatsStreamFactory;
 use crate::node_groups::controller::state_machine::NodeGroupMachine;
 use crate::node_groups::discovery::NodeGroupDiscoveryObserver;
 use crate::node_groups::scaler::NodeGroupScaler;
@@ -28,22 +30,29 @@ pub struct NodeGroupsController {
     node_group_max_retain_time: Duration,
     timer: Timer,
     addr: WeakAddr<Self>,
+    node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
+    cloud_provider: Addr<dyn CloudProvider>,
+    dns_provider: Addr<dyn DnsProvider>,
+    node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
 }
 
 impl NodeGroupsController {
-    pub fn new() -> Self {
+    pub fn new(
+        node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
+        cloud_provider: Addr<dyn CloudProvider>,
+        dns_provider: Addr<dyn DnsProvider>,
+        node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
+    ) -> Self {
         NodeGroupsController {
             node_groups: HashMap::new(),
             node_group_max_retain_time: Duration::from_secs(10),
             timer: Timer::default(),
             addr: Default::default(),
+            node_discovery_provider,
+            cloud_provider,
+            dns_provider,
+            node_stats_stream_factory,
         }
-    }
-}
-
-impl Default for NodeGroupsController {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -94,7 +103,13 @@ impl NodeGroupDiscoveryObserver for NodeGroupsController {
                 info!("Discovered new node group {:?}", &node_group.name);
                 self.node_groups.insert(
                     node_group.name.clone(),
-                    Some(NodeGroupMachine::new(node_group)),
+                    Some(NodeGroupMachine::new(
+                        node_group,
+                        self.node_discovery_provider.clone(),
+                        self.cloud_provider.clone(),
+                        self.dns_provider.clone(),
+                        self.node_stats_stream_factory.clone(),
+                    )),
                 );
             }
         }

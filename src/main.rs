@@ -27,7 +27,13 @@ fn init_logging() {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logging();
 
-    let node_groups_controller = spawn_actor(NodeGroupsController::new());
+    let node_groups_controller = spawn_actor(NodeGroupsController::new(
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        Box::new(StreamFactory),
+    ));
+
     let _node_group_discovery = spawn_actor(FileNodeGroupDiscovery::new(
         "test_files/node_groups",
         upcast!(node_groups_controller),

@@ -21,13 +21,6 @@ use log::{error, info};
 use std::time::{Duration, Instant};
 
 #[derive(Debug)]
-pub enum NodeState {
-    Unready,
-    Active,
-    Draining(NodeDrainingCause),
-}
-
-#[derive(Debug)]
 pub enum NodeMachine {
     Initializing(Data<Initializing>),
     Provisioning(Data<Provisioning>),

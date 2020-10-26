@@ -27,3 +27,12 @@ pub enum NodeDrainingCause {
     Scaling,
     RollingUpdate,
 }
+
+#[derive(Debug)]
+pub enum NodeState {
+    Unready,
+    Ready,
+    Active,
+    Draining(NodeDrainingCause),
+    Deprovisioned,
+}
