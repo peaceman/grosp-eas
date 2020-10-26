@@ -54,6 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }))
     .await?;
     call!(node_controller.discovered_node(NodeDiscoveryData {
+        group: "lel".into(),
         hostname: "demo".into(),
         state: NodeDiscoveryState::Ready,
     }))

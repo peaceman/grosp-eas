@@ -24,6 +24,7 @@ pub trait NodeDiscoveryObserver: Actor {
 #[derive(Debug, Deserialize)]
 pub struct NodeDiscoveryData {
     pub hostname: String,
+    pub group: String,
     pub state: NodeDiscoveryState,
 }
 

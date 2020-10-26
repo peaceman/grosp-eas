@@ -1,5 +1,6 @@
 mod state_machine;
 
+use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryObserver};
 use crate::node_groups::controller::state_machine::NodeGroupMachine;
 use crate::node_groups::discovery::NodeGroupDiscoveryObserver;
 use crate::node_groups::scaler::NodeGroupScaler;
@@ -94,6 +95,21 @@ impl NodeGroupDiscoveryObserver for NodeGroupsController {
                     Some(NodeGroupMachine::new(node_group)),
                 );
             }
+        }
+    }
+}
+
+#[async_trait]
+impl NodeDiscoveryObserver for NodeGroupsController {
+    async fn observe_node_discovery(&mut self, data: NodeDiscoveryData) {
+        if let Some(ngmo) = self.node_groups.get_mut(&data.group) {
+            let ngm = ngmo.take().unwrap();
+            *ngmo = Some(
+                ngm.handle(Some(state_machine::Event::DiscoveredNode {
+                    discovery_data: data,
+                }))
+                .await,
+            );
         }
     }
 }

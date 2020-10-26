@@ -1,3 +1,4 @@
+use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryObserver};
 use crate::node_groups::scaler::NodeGroupScaler;
 use crate::node_groups::NodeGroup;
 use act_zero::runtimes::tokio::spawn_actor;
@@ -10,6 +11,7 @@ pub enum Event {
     Initialize { max_retain_time: Duration },
     Discovered,
     Discard,
+    DiscoveredNode { discovery_data: NodeDiscoveryData },
 }
 
 #[async_trait]
@@ -69,6 +71,10 @@ impl Handler for Data<Running> {
                 node_group: self.node_group,
                 state: Discarding::new(self.state.scaler),
             }),
+            Some(Event::DiscoveredNode { discovery_data }) => {
+                send!(self.state.scaler.observe_node_discovery(discovery_data));
+                NodeGroupMachine::Running(self)
+            }
             None => self.check_last_discovery().await,
             _ => NodeGroupMachine::Running(self),
         }

@@ -1,3 +1,4 @@
+use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryObserver};
 use crate::node_groups::NodeGroup;
 use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
@@ -62,6 +63,13 @@ impl Tick for NodeGroupScaler {
 impl Drop for NodeGroupScaler {
     fn drop(&mut self) {
         info!("Drop {}", self);
+    }
+}
+
+#[async_trait]
+impl NodeDiscoveryObserver for NodeGroupScaler {
+    async fn observe_node_discovery(&mut self, data: NodeDiscoveryData) {
+        unimplemented!()
     }
 }
 
