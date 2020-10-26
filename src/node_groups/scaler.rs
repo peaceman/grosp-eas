@@ -99,23 +99,16 @@ impl Drop for NodeGroupScaler {
 #[async_trait]
 impl NodeDiscoveryObserver for NodeGroupScaler {
     async fn observe_node_discovery(&mut self, data: NodeDiscoveryData) {
+        info!(
+            "Observed node discovery ({}) {:?}",
+            self.node_group.name, data
+        );
+
         if !self.nodes.contains_key(&data.hostname) {
-            let node_controller = NodeController::new(
+            self.nodes.insert(
                 data.hostname.clone(),
-                Default::default(), // todo add real node stats observer
-                self.node_discovery_provider.clone(),
-                self.cloud_provider.clone(),
-                self.dns_provider.clone(),
-                self.node_stats_stream_factory.clone(),
+                self.create_scaling_node(&data.hostname),
             );
-
-            let node = ScalingNode {
-                state: NodeState::Unready,
-                last_stats: None,
-                controller: spawn_actor(node_controller),
-            };
-
-            self.nodes.insert(data.hostname.clone(), node);
         }
 
         let node = self.nodes.get(&data.hostname).unwrap();
@@ -126,7 +119,19 @@ impl NodeDiscoveryObserver for NodeGroupScaler {
 #[async_trait]
 impl NodeExplorationObserver for NodeGroupScaler {
     async fn observe_node_exploration(&mut self, node_info: CloudNodeInfo) {
-        unimplemented!()
+        info!(
+            "Observed node exploration ({}) {:?}",
+            self.node_group.name, node_info
+        );
+
+        if !self.nodes.contains_key(&node_info.hostname) {
+            let node = self.create_scaling_node(&node_info.hostname);
+
+            self.nodes.insert(node_info.hostname.clone(), node);
+        }
+
+        let node = self.nodes.get(&node_info.hostname).unwrap();
+        send!(node.controller.explored_node(node_info));
     }
 }
 
@@ -141,5 +146,28 @@ impl NodeGroupScaler {
         info!("Scale {}", self.node_group.name);
 
         Produces::ok(())
+    }
+
+    fn create_scaling_node(&self, hostname: impl AsRef<str>) -> ScalingNode {
+        info!(
+            "Create scaling node ({}) {}",
+            self.node_group.name,
+            hostname.as_ref()
+        );
+
+        let node_controller = NodeController::new(
+            hostname.as_ref().into(),
+            Default::default(), // todo add real node stats observer
+            self.node_discovery_provider.clone(),
+            self.cloud_provider.clone(),
+            self.dns_provider.clone(),
+            self.node_stats_stream_factory.clone(),
+        );
+
+        ScalingNode {
+            state: NodeState::Unready,
+            last_stats: None,
+            controller: spawn_actor(node_controller),
+        }
     }
 }
