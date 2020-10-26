@@ -119,14 +119,35 @@ impl NodeGroupDiscoveryObserver for NodeGroupsController {
 #[async_trait]
 impl NodeDiscoveryObserver for NodeGroupsController {
     async fn observe_node_discovery(&mut self, data: NodeDiscoveryData) {
-        if let Some(ngmo) = self.node_groups.get_mut(&data.group) {
-            let ngm = ngmo.take().unwrap();
-            *ngmo = Some(
-                ngm.handle(Some(state_machine::Event::DiscoveredNode {
-                    discovery_data: data,
-                }))
-                .await,
-            );
+        match self.node_groups.get_mut(&data.group) {
+            Some(ngmo) => {
+                let ngm = ngmo.take().unwrap();
+                *ngmo = Some(
+                    ngm.handle(Some(state_machine::Event::DiscoveredNode {
+                        discovery_data: data,
+                    }))
+                    .await,
+                );
+            }
+            None => {
+                info!(
+                    "Received node discovery for non existing node group; re-initializing {}",
+                    data.group
+                );
+
+                let group_name = data.group.clone();
+                let ngm = self
+                    .create_initialized_node_group_machine(&group_name)
+                    .await;
+
+                let ngm = ngm
+                    .handle(Some(state_machine::Event::DiscoveredNode {
+                        discovery_data: data,
+                    }))
+                    .await;
+
+                self.node_groups.insert(group_name, Some(ngm));
+            }
         }
     }
 }
@@ -134,12 +155,31 @@ impl NodeDiscoveryObserver for NodeGroupsController {
 #[async_trait]
 impl NodeExplorationObserver for NodeGroupsController {
     async fn observe_node_exploration(&mut self, node_info: CloudNodeInfo) {
-        if let Some(ngmo) = self.node_groups.get_mut(&node_info.group) {
-            let ngm = ngmo.take().unwrap();
-            *ngmo = Some(
-                ngm.handle(Some(state_machine::Event::ExploredNode { node_info }))
-                    .await,
-            );
+        match self.node_groups.get_mut(&node_info.group) {
+            Some(ngmo) => {
+                let ngm = ngmo.take().unwrap();
+                *ngmo = Some(
+                    ngm.handle(Some(state_machine::Event::ExploredNode { node_info }))
+                        .await,
+                );
+            }
+            None => {
+                info!(
+                    "Received node exploration for non existing node group; re-initializing {}",
+                    node_info.group
+                );
+
+                let group_name = node_info.group.clone();
+                let ngm = self
+                    .create_initialized_node_group_machine(&group_name)
+                    .await;
+
+                let ngm = ngm
+                    .handle(Some(state_machine::Event::ExploredNode { node_info }))
+                    .await;
+
+                self.node_groups.insert(group_name, Some(ngm));
+            }
         }
     }
 }
@@ -167,5 +207,30 @@ impl NodeGroupsController {
                 true
             }
         })
+    }
+
+    async fn create_initialized_node_group_machine(
+        &self,
+        group_name: impl AsRef<str>,
+    ) -> NodeGroupMachine {
+        let node_group = NodeGroup {
+            name: group_name.as_ref().into(),
+        };
+
+        let ngm = NodeGroupMachine::new(
+            node_group,
+            self.node_discovery_provider.clone(),
+            self.cloud_provider.clone(),
+            self.dns_provider.clone(),
+            self.node_stats_stream_factory.clone(),
+        );
+
+        let ngm = ngm
+            .handle(Some(state_machine::Event::Initialize {
+                max_retain_time: self.node_group_max_retain_time,
+            }))
+            .await;
+
+        ngm
     }
 }
