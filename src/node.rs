@@ -4,6 +4,7 @@ use serde::Deserialize;
 
 mod controller;
 pub mod discovery;
+pub mod exploration;
 pub mod stats;
 
 pub use controller::NodeController;

@@ -49,6 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     call!(node_controller.explored_node(CloudNodeInfo {
         identifier: "fock".into(),
         hostname: "demo".into(),
+        group: "lel".into(),
         ip_addresses: vec!["127.0.0.1".parse().unwrap()],
         created_at: Utc::now(),
     }))

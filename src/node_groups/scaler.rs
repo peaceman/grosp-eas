@@ -1,4 +1,6 @@
+use crate::cloud_provider::CloudNodeInfo;
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryObserver};
+use crate::node::exploration::NodeExplorationObserver;
 use crate::node_groups::NodeGroup;
 use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
@@ -69,6 +71,13 @@ impl Drop for NodeGroupScaler {
 #[async_trait]
 impl NodeDiscoveryObserver for NodeGroupScaler {
     async fn observe_node_discovery(&mut self, data: NodeDiscoveryData) {
+        unimplemented!()
+    }
+}
+
+#[async_trait]
+impl NodeExplorationObserver for NodeGroupScaler {
+    async fn observe_node_exploration(&mut self, node_info: CloudNodeInfo) {
         unimplemented!()
     }
 }

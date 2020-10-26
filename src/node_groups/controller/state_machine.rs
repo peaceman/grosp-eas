@@ -1,4 +1,6 @@
+use crate::cloud_provider::CloudNodeInfo;
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryObserver};
+use crate::node::exploration::NodeExplorationObserver;
 use crate::node_groups::scaler::NodeGroupScaler;
 use crate::node_groups::NodeGroup;
 use act_zero::runtimes::tokio::spawn_actor;
@@ -12,6 +14,7 @@ pub enum Event {
     Discovered,
     Discard,
     DiscoveredNode { discovery_data: NodeDiscoveryData },
+    ExploredNode { node_info: CloudNodeInfo },
 }
 
 #[async_trait]
@@ -73,6 +76,10 @@ impl Handler for Data<Running> {
             }),
             Some(Event::DiscoveredNode { discovery_data }) => {
                 send!(self.state.scaler.observe_node_discovery(discovery_data));
+                NodeGroupMachine::Running(self)
+            }
+            Some(Event::ExploredNode { node_info }) => {
+                send!(self.state.scaler.observe_node_exploration(node_info));
                 NodeGroupMachine::Running(self)
             }
             None => self.check_last_discovery().await,
