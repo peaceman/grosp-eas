@@ -19,6 +19,7 @@ digraph node_controller_state_machine {
     exploring -> ready
     exploring -> active
     exploring -> draining
+    exploring -> deprovisioning
 
     discovering -> ready
     discovering -> active

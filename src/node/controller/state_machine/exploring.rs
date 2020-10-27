@@ -9,6 +9,14 @@ impl MachineState for Exploring {}
 impl Handler for Data<Exploring> {
     async fn handle(self, event: Option<NodeMachineEvent>) -> NodeMachine {
         match event {
+            Some(NodeMachineEvent::DeprovisionNode { .. }) => {
+                info!("De-provision node {}", self.shared.hostname);
+
+                NodeMachine::Deprovisioning(Data {
+                    shared: self.shared,
+                    state: Deprovisioning::new(None),
+                })
+            }
             None => self.explore_node_info().await,
             _ => NodeMachine::Exploring(self),
         }
