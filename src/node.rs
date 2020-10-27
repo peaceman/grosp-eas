@@ -30,6 +30,7 @@ pub trait NodeStatsObserver: Actor {
 pub enum NodeDrainingCause {
     Scaling,
     RollingUpdate,
+    Termination,
 }
 
 #[derive(Debug)]

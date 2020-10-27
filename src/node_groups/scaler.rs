@@ -6,8 +6,8 @@ use crate::node::discovery::{
 use crate::node::exploration::NodeExplorationObserver;
 use crate::node::stats::NodeStatsStreamFactory;
 use crate::node::{
-    NodeController, NodeState, NodeStateInfo, NodeStateObserver, NodeStats, NodeStatsInfo,
-    NodeStatsObserver,
+    NodeController, NodeDrainingCause, NodeState, NodeStateInfo, NodeStateObserver, NodeStats,
+    NodeStatsInfo, NodeStatsObserver,
 };
 use crate::node_groups::NodeGroup;
 use act_zero::runtimes::tokio::{spawn_actor, Timer};
@@ -21,7 +21,6 @@ use std::time::Duration;
 
 pub struct NodeGroupScaler {
     node_group: NodeGroup,
-    should_terminate: bool,
     timer: Timer,
     addr: WeakAddr<Self>,
     nodes: HashMap<String, ScalingNode>,
@@ -47,7 +46,6 @@ impl NodeGroupScaler {
     ) -> Self {
         NodeGroupScaler {
             node_group,
-            should_terminate: false,
             timer: Default::default(),
             addr: Default::default(),
             nodes: Default::default(),
@@ -168,15 +166,35 @@ impl NodeStatsObserver for NodeGroupScaler {
 
 impl NodeGroupScaler {
     pub async fn terminate(&mut self) -> ActorResult<()> {
-        self.should_terminate = true;
+        info!("Terminate {}", self);
 
-        Err("Terminate".into())
+        for scaling_node in self.nodes.values() {
+            send!(scaling_node
+                .controller
+                .deprovision_node(NodeDrainingCause::Termination));
+        }
+
+        if self.nodes.is_empty() {
+            Err(format!("Terminated all nodes {}", self).into())
+        } else {
+            Produces::ok(())
+        }
     }
 
     async fn scale(&mut self) -> ActorResult<()> {
         info!("Scale {}", self.node_group.name);
 
+        self.remove_deprovisioned_nodes();
+
         Produces::ok(())
+    }
+
+    fn remove_deprovisioned_nodes(&mut self) {
+        self.nodes
+            .retain(|_, scaling_node| match scaling_node.state {
+                NodeState::Deprovisioned => false,
+                _ => true,
+            });
     }
 
     fn create_scaling_node(&self, hostname: impl AsRef<str>) -> ScalingNode {

@@ -120,29 +120,22 @@ impl Data<Running> {
 #[derive(Debug)]
 pub struct Discarding {
     scaler: Addr<NodeGroupScaler>,
-    triggered_termination: bool,
 }
 
 impl Discarding {
     fn new(scaler: Addr<NodeGroupScaler>) -> Self {
-        Discarding {
-            scaler,
-            triggered_termination: false,
-        }
+        Discarding { scaler }
     }
 }
 
 #[async_trait]
 impl Handler for Data<Discarding> {
     async fn handle(mut self, _event: Option<Event>) -> NodeGroupMachine {
-        if !self.state.triggered_termination {
-            info!(
-                "Trigger NodeGroupScaler termination {}",
-                self.shared.node_group.name
-            );
-            self.state.triggered_termination = true;
-            send!(self.state.scaler.terminate());
-        }
+        info!(
+            "Trigger NodeGroupScaler termination {}",
+            self.shared.node_group.name
+        );
+        send!(self.state.scaler.terminate());
 
         let scaler_is_terminated = tokio::select! {
             _ = self.state.scaler.termination() => {
