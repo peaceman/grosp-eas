@@ -232,16 +232,18 @@ impl NodeMachine {
         event: Option<NodeMachineEvent>,
         node_state_observer: WeakAddr<dyn NodeStateObserver>,
     ) -> Self {
+        let handler = NodeMachineProgressHandler::new(node_state_observer);
+
         match self {
-            Self::Initializing(m) => Self::handle_data(m, event, node_state_observer).await,
-            Self::Provisioning(m) => Self::handle_data(m, event, node_state_observer).await,
-            Self::Exploring(m) => Self::handle_data(m, event, node_state_observer).await,
-            Self::Discovering(m) => Self::handle_data(m, event, node_state_observer).await,
-            Self::Ready(m) => Self::handle_data(m, event, node_state_observer).await,
-            Self::Active(m) => Self::handle_data(m, event, node_state_observer).await,
-            Self::Draining(m) => Self::handle_data(m, event, node_state_observer).await,
-            Self::Deprovisioning(m) => Self::handle_data(m, event, node_state_observer).await,
-            Self::Deprovisioned(m) => Self::handle_data(m, event, node_state_observer).await,
+            Self::Initializing(m) => handler.progress(m, event).await,
+            Self::Provisioning(m) => handler.progress(m, event).await,
+            Self::Exploring(m) => handler.progress(m, event).await,
+            Self::Discovering(m) => handler.progress(m, event).await,
+            Self::Ready(m) => handler.progress(m, event).await,
+            Self::Active(m) => handler.progress(m, event).await,
+            Self::Draining(m) => handler.progress(m, event).await,
+            Self::Deprovisioning(m) => handler.progress(m, event).await,
+            Self::Deprovisioned(m) => handler.progress(m, event).await,
         }
     }
 
@@ -312,5 +314,27 @@ impl NodeMachine {
         };
 
         send!(node_state_observer.observe_node_state(node_state_info));
+    }
+}
+
+struct NodeMachineProgressHandler {
+    node_state_observer: WeakAddr<dyn NodeStateObserver>,
+}
+
+impl NodeMachineProgressHandler {
+    fn new(node_state_observer: WeakAddr<dyn NodeStateObserver>) -> Self {
+        Self {
+            node_state_observer,
+        }
+    }
+
+    async fn progress<T: Handler>(
+        &self,
+        node_machine_data: T,
+        event: Option<NodeMachineEvent>,
+    ) -> NodeMachine {
+        let node_machine = node_machine_data.handle(event).await;
+        node_machine.publish_node_state(&self.node_state_observer);
+        node_machine
     }
 }
