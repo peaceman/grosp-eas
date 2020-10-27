@@ -5,7 +5,10 @@ use crate::node::discovery::{
 };
 use crate::node::exploration::NodeExplorationObserver;
 use crate::node::stats::NodeStatsStreamFactory;
-use crate::node::{NodeController, NodeState, NodeStateInfo, NodeStateObserver, NodeStats};
+use crate::node::{
+    NodeController, NodeState, NodeStateInfo, NodeStateObserver, NodeStats, NodeStatsInfo,
+    NodeStatsObserver,
+};
 use crate::node_groups::NodeGroup;
 use act_zero::runtimes::tokio::{spawn_actor, Timer};
 use act_zero::timer::Tick;
@@ -149,6 +152,20 @@ impl NodeStateObserver for NodeGroupScaler {
     }
 }
 
+#[async_trait]
+impl NodeStatsObserver for NodeGroupScaler {
+    async fn observe_node_stats(&mut self, stats_info: NodeStatsInfo) {
+        info!(
+            "Observed node stats ({}) {:?}",
+            self.node_group.name, stats_info
+        );
+
+        if let Some(scaling_node) = self.nodes.get_mut(&stats_info.hostname) {
+            scaling_node.last_stats = Some(stats_info.stats);
+        }
+    }
+}
+
 impl NodeGroupScaler {
     pub async fn terminate(&mut self) -> ActorResult<()> {
         self.should_terminate = true;
@@ -171,7 +188,7 @@ impl NodeGroupScaler {
 
         let node_controller = NodeController::new(
             hostname.as_ref().into(),
-            Default::default(), // todo add real node stats observer
+            upcast!(self.addr.clone()),
             upcast!(self.addr.clone()),
             self.node_discovery_provider.clone(),
             self.cloud_provider.clone(),

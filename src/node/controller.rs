@@ -57,10 +57,16 @@ impl Tick for NodeController {
     }
 }
 
+impl Drop for NodeController {
+    fn drop(&mut self) {
+        info!("Drop NodeController {}", self.hostname);
+    }
+}
+
 impl NodeController {
     pub fn new(
         hostname: String,
-        node_stats_observer: Addr<dyn NodeStatsObserver>,
+        node_stats_observer: WeakAddr<dyn NodeStatsObserver>,
         node_state_observer: WeakAddr<dyn NodeStateObserver>,
         node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
         cloud_provider: Addr<dyn CloudProvider>,

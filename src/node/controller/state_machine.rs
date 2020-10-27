@@ -62,7 +62,7 @@ pub struct Shared {
     node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
     cloud_provider: Addr<dyn CloudProvider>,
     dns_provider: Addr<dyn DnsProvider>,
-    node_stats_observer: Addr<dyn NodeStatsObserver>,
+    node_stats_observer: WeakAddr<dyn NodeStatsObserver>,
     node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
     config: Config,
 }
@@ -209,7 +209,7 @@ impl NodeMachine {
         node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
         cloud_provider: Addr<dyn CloudProvider>,
         dns_provider: Addr<dyn DnsProvider>,
-        node_stats_observer: Addr<dyn NodeStatsObserver>,
+        node_stats_observer: WeakAddr<dyn NodeStatsObserver>,
         node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
         config: Config,
     ) -> Self {

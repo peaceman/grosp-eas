@@ -15,11 +15,15 @@ pub struct NodeStats {
     pub rx_bps: u64,
 }
 
+#[derive(Debug)]
+pub struct NodeStatsInfo {
+    pub hostname: String,
+    pub stats: NodeStats,
+}
+
 #[async_trait]
 pub trait NodeStatsObserver: Actor {
-    async fn observe_node_stats(&mut self, _stats: NodeStats) -> ActorResult<()> {
-        Produces::ok(())
-    }
+    async fn observe_node_stats(&mut self, stats_info: NodeStatsInfo) {}
 }
 
 #[derive(Debug, Copy, Clone, Deserialize)]
@@ -45,7 +49,5 @@ pub struct NodeStateInfo {
 
 #[async_trait]
 pub trait NodeStateObserver: Actor {
-    async fn observe_node_state(&mut self, state_info: NodeStateInfo) {
-        ()
-    }
+    async fn observe_node_state(&mut self, state_info: NodeStateInfo) {}
 }

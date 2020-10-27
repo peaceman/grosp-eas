@@ -1,5 +1,5 @@
 use crate::node::stats::NodeStatsStreamFactory;
-use crate::node::{NodeStats, NodeStatsObserver};
+use crate::node::{NodeStateInfo, NodeStats, NodeStatsInfo, NodeStatsObserver};
 use act_zero::{call, send, Actor, ActorResult, Addr, AddrLike, Produces, WeakAddr};
 use async_trait::async_trait;
 use log::{info, trace};
@@ -7,7 +7,7 @@ use tokio::stream::{Stream, StreamExt};
 
 pub struct StatsStreamer {
     hostname: String,
-    stats_observer: Addr<dyn NodeStatsObserver>,
+    stats_observer: WeakAddr<dyn NodeStatsObserver>,
     node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
 }
 
@@ -31,7 +31,7 @@ impl Actor for StatsStreamer {
 impl StatsStreamer {
     pub fn new(
         hostname: String,
-        stats_observer: Addr<dyn NodeStatsObserver>,
+        stats_observer: WeakAddr<dyn NodeStatsObserver>,
         node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
     ) -> Self {
         Self {
@@ -42,7 +42,7 @@ impl StatsStreamer {
     }
 
     async fn poll_stream(
-        addr: Addr<dyn NodeStatsObserver>,
+        addr: WeakAddr<dyn NodeStatsObserver>,
         hostname: String,
         stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
     ) {
@@ -52,7 +52,11 @@ impl StatsStreamer {
 
             while let Some(stats) = stats_stream.next().await {
                 trace!("Received node stats from stream {} {:?}", hostname, stats);
-                call!(addr.observe_node_stats(stats)).await;
+                call!(addr.observe_node_stats(NodeStatsInfo {
+                    hostname: hostname.clone(),
+                    stats,
+                }))
+                .await;
             }
         }
     }
