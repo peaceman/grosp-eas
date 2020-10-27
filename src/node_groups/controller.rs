@@ -109,6 +109,7 @@ impl NodeGroupDiscoveryObserver for NodeGroupsController {
                         self.cloud_provider.clone(),
                         self.dns_provider.clone(),
                         self.node_stats_stream_factory.clone(),
+                        self.node_group_max_retain_time.clone(),
                     )),
                 );
             }
@@ -185,14 +186,7 @@ impl NodeGroupsController {
         info!("Process node groups");
 
         for ngmo in self.node_groups.values_mut() {
-            let event = match ngmo {
-                Some(NodeGroupMachine::Initializing(_)) => Some(state_machine::Event::Initialize {
-                    max_retain_time: self.node_group_max_retain_time,
-                }),
-                _ => None,
-            };
-
-            *ngmo = Some(ngmo.take().unwrap().handle(event).await)
+            *ngmo = Some(ngmo.take().unwrap().handle(None).await)
         }
 
         // Remove discarded node groups from the controller
@@ -219,14 +213,9 @@ impl NodeGroupsController {
             self.cloud_provider.clone(),
             self.dns_provider.clone(),
             self.node_stats_stream_factory.clone(),
+            self.node_group_max_retain_time.clone(),
         );
 
-        let ngm = ngm
-            .handle(Some(state_machine::Event::Initialize {
-                max_retain_time: self.node_group_max_retain_time,
-            }))
-            .await;
-
-        ngm
+        ngm.handle(Some(state_machine::Event::Initialize)).await
     }
 }

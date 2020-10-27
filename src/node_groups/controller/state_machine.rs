@@ -12,7 +12,7 @@ use log::info;
 use std::time::{Duration, Instant};
 
 pub enum Event {
-    Initialize { max_retain_time: Duration },
+    Initialize,
     Discovered,
     Discard,
     DiscoveredNode { discovery_data: NodeDiscoveryData },
@@ -26,12 +26,18 @@ trait Handler {
 
 #[derive(Debug)]
 pub struct Data<S> {
+    shared: Shared,
+    state: S,
+}
+
+#[derive(Debug)]
+pub struct Shared {
     node_group: NodeGroup,
     node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
     cloud_provider: Addr<dyn CloudProvider>,
     dns_provider: Addr<dyn DnsProvider>,
     node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
-    state: S,
+    discovery_timeout: Duration,
 }
 
 #[derive(Debug)]
@@ -41,25 +47,20 @@ pub struct Initializing;
 impl Handler for Data<Initializing> {
     async fn handle(self, event: Option<Event>) -> NodeGroupMachine {
         match event {
-            Some(Event::Initialize { max_retain_time }) => {
+            Some(Event::Initialize) => {
                 let scaler = spawn_actor(NodeGroupScaler::new(
-                    self.node_group.clone(),
-                    self.node_discovery_provider.clone(),
-                    self.cloud_provider.clone(),
-                    self.dns_provider.clone(),
-                    self.node_stats_stream_factory.clone(),
+                    self.shared.node_group.clone(),
+                    self.shared.node_discovery_provider.clone(),
+                    self.shared.cloud_provider.clone(),
+                    self.shared.dns_provider.clone(),
+                    self.shared.node_stats_stream_factory.clone(),
                 ));
 
                 NodeGroupMachine::Running(Data {
-                    node_group: self.node_group,
-                    node_discovery_provider: self.node_discovery_provider,
-                    cloud_provider: self.cloud_provider,
-                    dns_provider: self.dns_provider,
-                    node_stats_stream_factory: self.node_stats_stream_factory,
+                    shared: self.shared,
                     state: Running {
                         scaler,
                         last_discovery: Instant::now(),
-                        max_retain_time,
                     },
                 })
             }
@@ -72,7 +73,6 @@ impl Handler for Data<Initializing> {
 pub struct Running {
     scaler: Addr<NodeGroupScaler>,
     last_discovery: Instant,
-    max_retain_time: Duration,
 }
 
 #[async_trait]
@@ -80,22 +80,14 @@ impl Handler for Data<Running> {
     async fn handle(self, event: Option<Event>) -> NodeGroupMachine {
         match event {
             Some(Event::Discovered) => NodeGroupMachine::Running(Data {
-                node_group: self.node_group,
-                node_discovery_provider: self.node_discovery_provider,
-                cloud_provider: self.cloud_provider,
-                dns_provider: self.dns_provider,
-                node_stats_stream_factory: self.node_stats_stream_factory,
+                shared: self.shared,
                 state: Running {
                     last_discovery: Instant::now(),
                     ..self.state
                 },
             }),
             Some(Event::Discard) => NodeGroupMachine::Discarding(Data {
-                node_group: self.node_group,
-                node_discovery_provider: self.node_discovery_provider,
-                cloud_provider: self.cloud_provider,
-                dns_provider: self.dns_provider,
-                node_stats_stream_factory: self.node_stats_stream_factory,
+                shared: self.shared,
                 state: Discarding::new(self.state.scaler),
             }),
             Some(Event::DiscoveredNode { discovery_data }) => {
@@ -114,8 +106,8 @@ impl Handler for Data<Running> {
 
 impl Data<Running> {
     async fn check_last_discovery(self) -> NodeGroupMachine {
-        let should_discard =
-            Instant::now().duration_since(self.state.last_discovery) > self.state.max_retain_time;
+        let should_discard = Instant::now().duration_since(self.state.last_discovery)
+            > self.shared.discovery_timeout;
 
         if should_discard {
             self.handle(Some(Event::Discard)).await
@@ -146,7 +138,7 @@ impl Handler for Data<Discarding> {
         if !self.state.triggered_termination {
             info!(
                 "Trigger NodeGroupScaler termination {}",
-                self.node_group.name
+                self.shared.node_group.name
             );
             self.state.triggered_termination = true;
             send!(self.state.scaler.terminate());
@@ -163,11 +155,7 @@ impl Handler for Data<Discarding> {
 
         if scaler_is_terminated {
             NodeGroupMachine::Discarded(Data {
-                node_group: self.node_group,
-                node_discovery_provider: self.node_discovery_provider,
-                cloud_provider: self.cloud_provider,
-                dns_provider: self.dns_provider,
-                node_stats_stream_factory: self.node_stats_stream_factory,
+                shared: self.shared,
                 state: Discarded,
             })
         } else {
@@ -194,13 +182,17 @@ impl NodeGroupMachine {
         cloud_provider: Addr<dyn CloudProvider>,
         dns_provider: Addr<dyn DnsProvider>,
         node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
+        discovery_timeout: Duration,
     ) -> Self {
         Self::Initializing(Data {
-            node_group,
-            node_discovery_provider,
-            cloud_provider,
-            dns_provider,
-            node_stats_stream_factory,
+            shared: Shared {
+                node_group,
+                node_discovery_provider,
+                cloud_provider,
+                dns_provider,
+                node_stats_stream_factory,
+                discovery_timeout,
+            },
             state: Initializing,
         })
     }
