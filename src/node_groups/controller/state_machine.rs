@@ -110,6 +110,10 @@ impl Data<Running> {
             > self.shared.discovery_timeout;
 
         if should_discard {
+            info!(
+                "NodeGroup reached discovery timeout {}",
+                self.shared.node_group.name
+            );
             self.handle(Some(Event::Discard)).await
         } else {
             NodeGroupMachine::Running(self)
