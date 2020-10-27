@@ -4,9 +4,11 @@ mod stats_streamer;
 
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
 use crate::dns_provider::DnsProvider;
-use crate::node::controller::state_machine::{NodeMachine, NodeMachineEvent};
+use crate::node::controller::state_machine::{Data, Draining, NodeMachine, NodeMachineEvent};
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryProvider};
-use crate::node::{NodeDrainingCause, NodeStats, NodeStatsObserver};
+use crate::node::{
+    NodeDrainingCause, NodeState, NodeStateInfo, NodeStateObserver, NodeStats, NodeStatsObserver,
+};
 use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
 use act_zero::{call, send, Actor, ActorResult, Addr, AddrLike, Produces, WeakAddr};
@@ -24,6 +26,7 @@ pub struct NodeController {
     addr: WeakAddr<Self>,
     node_machine_timer: Timer,
     node_machine: Option<NodeMachine>,
+    node_state_observer: WeakAddr<dyn NodeStateObserver>,
 }
 
 #[async_trait]
@@ -58,6 +61,7 @@ impl NodeController {
     pub fn new(
         hostname: String,
         node_stats_observer: Addr<dyn NodeStatsObserver>,
+        node_state_observer: WeakAddr<dyn NodeStateObserver>,
         node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
         cloud_provider: Addr<dyn CloudProvider>,
         dns_provider: Addr<dyn DnsProvider>,
@@ -67,6 +71,7 @@ impl NodeController {
             hostname: hostname.clone(),
             addr: Default::default(),
             node_machine_timer: Default::default(),
+            node_state_observer,
             node_machine: Some(NodeMachine::new(
                 hostname,
                 node_discovery_provider,
@@ -115,6 +120,12 @@ impl NodeController {
     async fn process_node_machine(&mut self, event: Option<NodeMachineEvent>) {
         info!("Process node machine {}", self.hostname);
 
-        self.node_machine = Some(self.node_machine.take().unwrap().handle(event).await);
+        self.node_machine = Some(
+            self.node_machine
+                .take()
+                .unwrap()
+                .handle(event, self.node_state_observer.clone())
+                .await,
+        );
     }
 }

@@ -14,8 +14,10 @@ use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
 use crate::dns_provider::DnsProvider;
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryProvider};
 use crate::node::stats::NodeStatsStreamFactory;
-use crate::node::{NodeDrainingCause, NodeStatsObserver};
-use act_zero::{call, Addr};
+use crate::node::{
+    NodeDrainingCause, NodeState, NodeStateInfo, NodeStateObserver, NodeStatsObserver,
+};
+use act_zero::{call, send, Addr, WeakAddr};
 use async_trait::async_trait;
 use log::{error, info};
 use std::time::{Duration, Instant};
@@ -225,17 +227,90 @@ impl NodeMachine {
         })
     }
 
-    pub async fn handle(self, event: Option<NodeMachineEvent>) -> Self {
+    pub async fn handle(
+        self,
+        event: Option<NodeMachineEvent>,
+        node_state_observer: WeakAddr<dyn NodeStateObserver>,
+    ) -> Self {
         match self {
-            Self::Initializing(m) => m.handle(event).await,
-            Self::Provisioning(m) => m.handle(event).await,
-            Self::Exploring(m) => m.handle(event).await,
-            Self::Discovering(m) => m.handle(event).await,
-            Self::Ready(m) => m.handle(event).await,
-            Self::Active(m) => m.handle(event).await,
-            Self::Draining(m) => m.handle(event).await,
-            Self::Deprovisioning(m) => m.handle(event).await,
-            Self::Deprovisioned(_) => self,
+            Self::Initializing(m) => Self::handle_data(m, event, node_state_observer).await,
+            Self::Provisioning(m) => Self::handle_data(m, event, node_state_observer).await,
+            Self::Exploring(m) => Self::handle_data(m, event, node_state_observer).await,
+            Self::Discovering(m) => Self::handle_data(m, event, node_state_observer).await,
+            Self::Ready(m) => Self::handle_data(m, event, node_state_observer).await,
+            Self::Active(m) => Self::handle_data(m, event, node_state_observer).await,
+            Self::Draining(m) => Self::handle_data(m, event, node_state_observer).await,
+            Self::Deprovisioning(m) => Self::handle_data(m, event, node_state_observer).await,
+            Self::Deprovisioned(m) => Self::handle_data(m, event, node_state_observer).await,
         }
+    }
+
+    async fn handle_data<T: Handler>(
+        data: T,
+        event: Option<NodeMachineEvent>,
+        node_state_observer: WeakAddr<dyn NodeStateObserver>,
+    ) -> Self {
+        let new_state = data.handle(event).await;
+        new_state.publish_node_state(&node_state_observer);
+        new_state
+    }
+
+    fn publish_node_state(&self, node_state_observer: &WeakAddr<dyn NodeStateObserver>) {
+        let node_state_info = match self {
+            NodeMachine::Initializing(Data {
+                shared: Shared { hostname, .. },
+                ..
+            })
+            | NodeMachine::Discovering(Data {
+                shared: Shared { hostname, .. },
+                ..
+            })
+            | NodeMachine::Exploring(Data {
+                shared: Shared { hostname, .. },
+                ..
+            })
+            | NodeMachine::Provisioning(Data {
+                shared: Shared { hostname, .. },
+                ..
+            })
+            | NodeMachine::Deprovisioning(Data {
+                shared: Shared { hostname, .. },
+                ..
+            }) => NodeStateInfo {
+                state: NodeState::Unready,
+                hostname: hostname.clone(),
+            },
+            NodeMachine::Ready(Data {
+                shared: Shared { hostname, .. },
+                ..
+            }) => NodeStateInfo {
+                state: NodeState::Ready,
+                hostname: hostname.clone(),
+            },
+            NodeMachine::Active(Data {
+                shared: Shared { hostname, .. },
+                ..
+            }) => NodeStateInfo {
+                state: NodeState::Active,
+                hostname: hostname.clone(),
+            },
+            NodeMachine::Draining(Data {
+                shared: Shared { hostname, .. },
+                state: Draining { cause, .. },
+                ..
+            }) => NodeStateInfo {
+                state: NodeState::Draining(cause.clone()),
+                hostname: hostname.clone(),
+            },
+            NodeMachine::Deprovisioned(Data {
+                shared: Shared { hostname, .. },
+                ..
+            }) => NodeStateInfo {
+                state: NodeState::Deprovisioned,
+                hostname: hostname.clone(),
+            },
+        };
+
+        send!(node_state_observer.observe_node_state(node_state_info));
     }
 }

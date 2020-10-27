@@ -36,3 +36,16 @@ pub enum NodeState {
     Draining(NodeDrainingCause),
     Deprovisioned,
 }
+
+#[derive(Debug)]
+pub struct NodeStateInfo {
+    pub hostname: String,
+    pub state: NodeState,
+}
+
+#[async_trait]
+pub trait NodeStateObserver: Actor {
+    async fn observe_node_state(&mut self, state_info: NodeStateInfo) {
+        ()
+    }
+}

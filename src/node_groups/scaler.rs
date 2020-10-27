@@ -5,11 +5,11 @@ use crate::node::discovery::{
 };
 use crate::node::exploration::NodeExplorationObserver;
 use crate::node::stats::NodeStatsStreamFactory;
-use crate::node::{NodeController, NodeState, NodeStats};
+use crate::node::{NodeController, NodeState, NodeStateInfo, NodeStateObserver, NodeStats};
 use crate::node_groups::NodeGroup;
 use act_zero::runtimes::tokio::{spawn_actor, Timer};
 use act_zero::timer::Tick;
-use act_zero::{send, Actor, ActorResult, Addr, Produces, WeakAddr};
+use act_zero::{send, upcast, Actor, ActorResult, Addr, Produces, WeakAddr};
 use async_trait::async_trait;
 use log::info;
 use std::collections::HashMap;
@@ -135,6 +135,20 @@ impl NodeExplorationObserver for NodeGroupScaler {
     }
 }
 
+#[async_trait]
+impl NodeStateObserver for NodeGroupScaler {
+    async fn observe_node_state(&mut self, state_info: NodeStateInfo) {
+        info!(
+            "Observed node state ({}) {:?}",
+            self.node_group.name, state_info
+        );
+
+        if let Some(scaling_node) = self.nodes.get_mut(&state_info.hostname) {
+            scaling_node.state = state_info.state;
+        }
+    }
+}
+
 impl NodeGroupScaler {
     pub async fn terminate(&mut self) -> ActorResult<()> {
         self.should_terminate = true;
@@ -158,6 +172,7 @@ impl NodeGroupScaler {
         let node_controller = NodeController::new(
             hostname.as_ref().into(),
             Default::default(), // todo add real node stats observer
+            upcast!(self.addr.clone()),
             self.node_discovery_provider.clone(),
             self.cloud_provider.clone(),
             self.dns_provider.clone(),
