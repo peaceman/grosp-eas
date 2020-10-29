@@ -5,12 +5,12 @@ use act_zero::timer::Tick;
 use act_zero::{send, Actor, ActorResult, Addr, Produces, WeakAddr};
 use async_trait::async_trait;
 use futures::TryFutureExt;
-use log::{error, info};
 use std::fmt;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use tracing::{error, info};
 
 pub struct FileNodeDiscovery {
     directory_path: PathBuf,
@@ -35,6 +35,7 @@ impl FileNodeDiscovery {
 
 #[async_trait]
 impl Actor for FileNodeDiscovery {
+    #[tracing::instrument(skip(addr))]
     async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
@@ -59,8 +60,15 @@ impl fmt::Display for FileNodeDiscovery {
     }
 }
 
+impl fmt::Debug for FileNodeDiscovery {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+
 #[async_trait]
 impl Tick for FileNodeDiscovery {
+    #[tracing::instrument]
     async fn tick(&mut self) -> ActorResult<()> {
         if self.timer.tick() {
             send!(self.addr.discover());
@@ -71,6 +79,7 @@ impl Tick for FileNodeDiscovery {
 }
 
 impl FileNodeDiscovery {
+    #[tracing::instrument]
     async fn discover(&mut self) {
         info!("Start discovery {}", self);
 

@@ -2,7 +2,7 @@ use super::*;
 
 use act_zero::call;
 use async_trait::async_trait;
-use log::{error, info};
+use tracing::{error, info};
 
 impl MachineState for Deprovisioning {}
 

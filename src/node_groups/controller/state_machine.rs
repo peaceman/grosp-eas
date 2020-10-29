@@ -8,9 +8,10 @@ use crate::node_groups::NodeGroup;
 use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::{send, Addr, AddrLike};
 use async_trait::async_trait;
-use log::info;
 use std::time::{Duration, Instant};
+use tracing::info;
 
+#[derive(Debug)]
 pub enum Event {
     Initialize,
     Discovered,
@@ -45,6 +46,7 @@ pub struct Initializing;
 
 #[async_trait]
 impl Handler for Data<Initializing> {
+    #[tracing::instrument]
     async fn handle(self, event: Option<Event>) -> NodeGroupMachine {
         match event {
             Some(Event::Initialize) => {
@@ -77,6 +79,7 @@ pub struct Running {
 
 #[async_trait]
 impl Handler for Data<Running> {
+    #[tracing::instrument]
     async fn handle(self, event: Option<Event>) -> NodeGroupMachine {
         match event {
             Some(Event::Discovered) => NodeGroupMachine::Running(Data {
@@ -105,6 +108,7 @@ impl Handler for Data<Running> {
 }
 
 impl Data<Running> {
+    #[tracing::instrument]
     async fn check_last_discovery(self) -> NodeGroupMachine {
         let should_discard = Instant::now().duration_since(self.state.last_discovery)
             > self.shared.discovery_timeout;
@@ -134,6 +138,7 @@ impl Discarding {
 
 #[async_trait]
 impl Handler for Data<Discarding> {
+    #[tracing::instrument]
     async fn handle(mut self, _event: Option<Event>) -> NodeGroupMachine {
         info!(
             "Trigger NodeGroupScaler termination {}",
@@ -193,7 +198,7 @@ impl NodeGroupMachine {
             state: Initializing,
         })
     }
-
+    #[tracing::instrument]
     pub async fn handle(self, event: Option<Event>) -> Self {
         match self {
             Self::Initializing(m) => m.handle(event).await,

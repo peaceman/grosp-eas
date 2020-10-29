@@ -14,10 +14,10 @@ use act_zero::runtimes::tokio::{spawn_actor, Timer};
 use act_zero::timer::Tick;
 use act_zero::{send, upcast, Actor, ActorResult, Addr, Produces, WeakAddr};
 use async_trait::async_trait;
-use log::info;
 use std::collections::HashMap;
 use std::fmt;
 use std::time::Duration;
+use tracing::info;
 
 pub struct NodeGroupScaler {
     node_group: NodeGroup,
@@ -63,8 +63,15 @@ impl fmt::Display for NodeGroupScaler {
     }
 }
 
+impl fmt::Debug for NodeGroupScaler {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+
 #[async_trait]
 impl Actor for NodeGroupScaler {
+    #[tracing::instrument(skip(addr))]
     async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
@@ -82,6 +89,7 @@ impl Actor for NodeGroupScaler {
 
 #[async_trait]
 impl Tick for NodeGroupScaler {
+    #[tracing::instrument]
     async fn tick(&mut self) -> ActorResult<()> {
         if self.timer.tick() {
             send!(self.addr.scale());
@@ -99,6 +107,7 @@ impl Drop for NodeGroupScaler {
 
 #[async_trait]
 impl NodeDiscoveryObserver for NodeGroupScaler {
+    #[tracing::instrument]
     async fn observe_node_discovery(&mut self, data: NodeDiscoveryData) {
         info!(
             "Observed node discovery ({}) {:?}",
@@ -119,6 +128,7 @@ impl NodeDiscoveryObserver for NodeGroupScaler {
 
 #[async_trait]
 impl NodeExplorationObserver for NodeGroupScaler {
+    #[tracing::instrument]
     async fn observe_node_exploration(&mut self, node_info: CloudNodeInfo) {
         info!(
             "Observed node exploration ({}) {:?}",
@@ -138,6 +148,7 @@ impl NodeExplorationObserver for NodeGroupScaler {
 
 #[async_trait]
 impl NodeStateObserver for NodeGroupScaler {
+    #[tracing::instrument]
     async fn observe_node_state(&mut self, state_info: NodeStateInfo) {
         info!(
             "Observed node state ({}) {:?}",
@@ -152,6 +163,7 @@ impl NodeStateObserver for NodeGroupScaler {
 
 #[async_trait]
 impl NodeStatsObserver for NodeGroupScaler {
+    #[tracing::instrument]
     async fn observe_node_stats(&mut self, stats_info: NodeStatsInfo) {
         info!(
             "Observed node stats ({}) {:?}",
@@ -165,6 +177,7 @@ impl NodeStatsObserver for NodeGroupScaler {
 }
 
 impl NodeGroupScaler {
+    #[tracing::instrument]
     pub async fn terminate(&mut self) -> ActorResult<()> {
         info!("Terminate {}", self);
 
@@ -181,6 +194,7 @@ impl NodeGroupScaler {
         }
     }
 
+    #[tracing::instrument]
     async fn scale(&mut self) -> ActorResult<()> {
         info!("Scale {}", self.node_group.name);
 
@@ -189,6 +203,7 @@ impl NodeGroupScaler {
         Produces::ok(())
     }
 
+    #[tracing::instrument]
     fn remove_deprovisioned_nodes(&mut self) {
         self.nodes
             .retain(|_, scaling_node| match scaling_node.state {
@@ -197,6 +212,7 @@ impl NodeGroupScaler {
             });
     }
 
+    #[tracing::instrument(fields(hostname = hostname.as_ref()))]
     fn create_scaling_node(&self, hostname: impl AsRef<str>) -> ScalingNode {
         info!(
             "Create scaling node ({}) {}",

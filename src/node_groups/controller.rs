@@ -5,7 +5,7 @@ use crate::dns_provider::DnsProvider;
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryObserver, NodeDiscoveryProvider};
 use crate::node::exploration::NodeExplorationObserver;
 use crate::node::stats::NodeStatsStreamFactory;
-use crate::node_groups::controller::state_machine::NodeGroupMachine;
+use crate::node_groups::controller::state_machine::{Event, NodeGroupMachine};
 use crate::node_groups::discovery::NodeGroupDiscoveryObserver;
 use crate::node_groups::scaler::NodeGroupScaler;
 use crate::node_groups::NodeGroup;
@@ -13,10 +13,10 @@ use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
 use act_zero::{send, Actor, ActorResult, Addr, Produces, WeakAddr};
 use async_trait::async_trait;
-use log::info;
 use std::collections::HashMap;
 use std::fmt;
 use std::time::{Duration, Instant};
+use tracing::info;
 
 #[derive(Debug)]
 struct NodeGroupInfo {
@@ -62,8 +62,15 @@ impl fmt::Display for NodeGroupsController {
     }
 }
 
+impl fmt::Debug for NodeGroupsController {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+
 #[async_trait]
 impl Actor for NodeGroupsController {
+    #[tracing::instrument(skip(addr))]
     async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
@@ -81,6 +88,7 @@ impl Actor for NodeGroupsController {
 
 #[async_trait]
 impl Tick for NodeGroupsController {
+    #[tracing::instrument]
     async fn tick(&mut self) -> ActorResult<()> {
         if self.timer.tick() {
             send!(self.addr.process_node_groups());
@@ -92,6 +100,7 @@ impl Tick for NodeGroupsController {
 
 #[async_trait]
 impl NodeGroupDiscoveryObserver for NodeGroupsController {
+    #[tracing::instrument]
     async fn observe_node_group_discovery(&mut self, node_group: NodeGroup) {
         match self.node_groups.get_mut(&node_group.name) {
             Some(ngmo) => {
@@ -119,6 +128,7 @@ impl NodeGroupDiscoveryObserver for NodeGroupsController {
 
 #[async_trait]
 impl NodeDiscoveryObserver for NodeGroupsController {
+    #[tracing::instrument]
     async fn observe_node_discovery(&mut self, data: NodeDiscoveryData) {
         match self.node_groups.get_mut(&data.group) {
             Some(ngmo) => {
@@ -153,6 +163,7 @@ impl NodeDiscoveryObserver for NodeGroupsController {
 
 #[async_trait]
 impl NodeExplorationObserver for NodeGroupsController {
+    #[tracing::instrument(skip(self))]
     async fn observe_node_exploration(&mut self, node_info: CloudNodeInfo) {
         match self.node_groups.get_mut(&node_info.group) {
             Some(ngmo) => {
@@ -182,11 +193,12 @@ impl NodeExplorationObserver for NodeGroupsController {
 }
 
 impl NodeGroupsController {
+    #[tracing::instrument]
     async fn process_node_groups(&mut self) {
         info!("Process node groups");
 
         for ngmo in self.node_groups.values_mut() {
-            *ngmo = Some(ngmo.take().unwrap().handle(None).await)
+            *ngmo = Some(process_node_group_machine(ngmo.take().unwrap(), None).await)
         }
 
         // Remove discarded node groups from the controller
@@ -199,6 +211,7 @@ impl NodeGroupsController {
         })
     }
 
+    #[tracing::instrument(fields(group_name = group_name.as_ref()))]
     async fn create_running_node_group_machine(
         &self,
         group_name: impl AsRef<str>,
@@ -216,6 +229,14 @@ impl NodeGroupsController {
             self.node_group_max_retain_time.clone(),
         );
 
-        ngm.handle(Some(state_machine::Event::Initialize)).await
+        process_node_group_machine(ngm, Some(state_machine::Event::Initialize)).await
     }
+}
+
+#[tracing::instrument]
+async fn process_node_group_machine(
+    ngm: NodeGroupMachine,
+    event: Option<Event>,
+) -> NodeGroupMachine {
+    ngm.handle(event).await
 }

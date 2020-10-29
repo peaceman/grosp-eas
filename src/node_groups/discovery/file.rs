@@ -1,4 +1,4 @@
-use log::info;
+use tracing::{info, Instrument};
 
 use crate::node_groups::discovery::NodeGroupDiscoveryObserver;
 use crate::node_groups::NodeGroup;
@@ -6,10 +6,11 @@ use crate::utils;
 use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
 use act_zero::{send, Actor, ActorResult, Addr, Produces, WeakAddr};
+use anyhow::Context;
 use async_trait::async_trait;
 use futures::stream::{FuturesUnordered, StreamExt};
 use futures::TryFutureExt;
-use std::fmt::Formatter;
+use std::fmt;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
@@ -39,6 +40,7 @@ impl FileNodeGroupDiscovery {
 
 #[async_trait]
 impl Actor for FileNodeGroupDiscovery {
+    #[tracing::instrument(skip(addr))]
     async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
@@ -56,6 +58,7 @@ impl Actor for FileNodeGroupDiscovery {
 
 #[async_trait]
 impl Tick for FileNodeGroupDiscovery {
+    #[tracing::instrument]
     async fn tick(&mut self) -> ActorResult<()> {
         if self.timer.tick() {
             send!(self.addr.discover());
@@ -72,6 +75,7 @@ impl Drop for FileNodeGroupDiscovery {
 }
 
 impl FileNodeGroupDiscovery {
+    #[tracing::instrument]
     async fn discover(&self) {
         info!("Start discovery {}", self);
 
@@ -88,8 +92,8 @@ impl FileNodeGroupDiscovery {
     }
 }
 
-impl std::fmt::Display for FileNodeGroupDiscovery {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for FileNodeGroupDiscovery {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "FileNodeGroupDiscovery ({})",
@@ -98,10 +102,17 @@ impl std::fmt::Display for FileNodeGroupDiscovery {
     }
 }
 
+impl fmt::Debug for FileNodeGroupDiscovery {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+
 fn parse_node_group_file(path: impl AsRef<Path>) -> anyhow::Result<NodeGroup> {
-    let file = File::open(path)?;
+    let file = File::open(&path)?;
     let reader = BufReader::new(file);
-    let result = serde_yaml::from_reader(reader)?;
+    let result = serde_yaml::from_reader(reader)
+        .with_context(|| format!("Path {}", path.as_ref().display()))?;
 
     Ok(result)
 }

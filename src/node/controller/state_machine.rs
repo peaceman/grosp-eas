@@ -19,8 +19,8 @@ use crate::node::{
 };
 use act_zero::{call, send, Addr, WeakAddr};
 use async_trait::async_trait;
-use log::{error, info};
 use std::time::{Duration, Instant};
+use tracing::{error, info};
 
 #[derive(Debug)]
 pub enum NodeMachine {
@@ -35,6 +35,7 @@ pub enum NodeMachine {
     Deprovisioned(Data<Deprovisioned>),
 }
 
+#[derive(Debug)]
 pub enum NodeMachineEvent {
     ProvisionNode,
     DiscoveredNode { discovery_data: NodeDiscoveryData },

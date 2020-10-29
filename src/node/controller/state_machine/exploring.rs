@@ -1,7 +1,7 @@
 use super::*;
 use crate::node::discovery::NodeDiscoveryState;
 use act_zero::call;
-use log::error;
+use tracing::error;
 
 impl MachineState for Exploring {}
 

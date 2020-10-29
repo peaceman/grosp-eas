@@ -1,6 +1,6 @@
 use super::*;
 use crate::node::discovery::NodeDiscoveryState;
-use log::error;
+use tracing::error;
 
 impl MachineState for Provisioning {}
 

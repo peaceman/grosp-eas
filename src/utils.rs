@@ -1,7 +1,7 @@
 use futures::stream::{FuturesUnordered, StreamExt};
-use log::error;
 use std::path::{Path, PathBuf};
 use tokio::fs::DirEntry;
+use tracing::error;
 
 pub async fn scan_for_files(path: impl AsRef<Path>) -> anyhow::Result<Vec<DirEntry>> {
     let dir_entries = tokio::fs::read_dir(path).await?;

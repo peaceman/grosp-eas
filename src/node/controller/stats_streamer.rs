@@ -2,8 +2,8 @@ use crate::node::stats::NodeStatsStreamFactory;
 use crate::node::{NodeStateInfo, NodeStats, NodeStatsInfo, NodeStatsObserver};
 use act_zero::{call, send, Actor, ActorResult, Addr, AddrLike, Produces, WeakAddr};
 use async_trait::async_trait;
-use log::{info, trace};
 use tokio::stream::{Stream, StreamExt};
+use tracing::{info, trace};
 
 pub struct StatsStreamer {
     hostname: String,

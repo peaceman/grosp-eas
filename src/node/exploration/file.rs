@@ -4,14 +4,15 @@ use crate::utils;
 use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
 use act_zero::{send, Actor, ActorResult, Addr, Produces, WeakAddr};
+use anyhow::Context;
 use async_trait::async_trait;
 use futures::TryFutureExt;
-use log::info;
 use std::fmt;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use tracing::info;
 
 pub struct FileNodeExploration {
     directory_path: PathBuf,
@@ -36,6 +37,7 @@ impl FileNodeExploration {
 
 #[async_trait]
 impl Actor for FileNodeExploration {
+    #[tracing::instrument(skip(addr))]
     async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
@@ -59,8 +61,16 @@ impl fmt::Display for FileNodeExploration {
         )
     }
 }
+
+impl fmt::Debug for FileNodeExploration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+
 #[async_trait]
 impl Tick for FileNodeExploration {
+    #[tracing::instrument]
     async fn tick(&mut self) -> ActorResult<()> {
         if self.timer.tick() {
             send!(self.addr.explore());
@@ -71,6 +81,7 @@ impl Tick for FileNodeExploration {
 }
 
 impl FileNodeExploration {
+    #[tracing::instrument]
     async fn explore(&mut self) {
         info!("Start exploration {}", self);
 
@@ -93,9 +104,10 @@ async fn scan_for_nodes(path: impl AsRef<Path>) -> Vec<CloudNodeInfo> {
 }
 
 fn parse_node_discovery_file(path: impl AsRef<Path>) -> anyhow::Result<CloudNodeInfo> {
-    let file = File::open(path)?;
+    let file = File::open(&path)?;
     let reader = BufReader::new(file);
-    let result = serde_yaml::from_reader(reader)?;
+    let result = serde_yaml::from_reader(reader)
+        .with_context(|| format!("Path {}", path.as_ref().display()))?;
 
     Ok(result)
 }

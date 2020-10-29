@@ -14,14 +14,28 @@ use edge_auto_scaler::node_groups::discovery::FileNodeGroupDiscovery;
 use edge_auto_scaler::node_groups::NodeGroupsController;
 use env_logger::Env;
 use futures::task::Context;
-use log::info;
 use std::net::IpAddr;
 use std::time::Duration;
 use tokio::macros::support::{Pin, Poll};
 use tokio::stream::Stream;
+use tracing::info;
+use tracing::subscriber::set_global_default;
+use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
+use tracing_subscriber::fmt::Subscriber;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::{EnvFilter, Registry};
 
 fn init_logging() {
-    env_logger::from_env(Env::default().default_filter_or("info")).init();
+    // env_logger::from_env(Env::default().default_filter_or("info")).init();
+
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("trace"));
+    let formatting_layer = BunyanFormattingLayer::new("edge-auto-scaler".into(), std::io::stdout);
+
+    let subscriber = Registry::default()
+        .with(env_filter)
+        .with(tracing_subscriber::fmt::layer());
+
+    set_global_default(subscriber).expect("Failed to set subscriber");
 }
 
 #[tokio::main]

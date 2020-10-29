@@ -13,9 +13,10 @@ use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
 use act_zero::{call, send, Actor, ActorResult, Addr, AddrLike, Produces, WeakAddr};
 use async_trait::async_trait;
-use log::info;
+use std::fmt;
 use std::time::Duration;
 use tokio::stream::{Stream, StreamExt};
+use tracing::info;
 
 use crate::node::stats::NodeStatsStreamFactory;
 use config::Config;
@@ -29,8 +30,21 @@ pub struct NodeController {
     node_state_observer: WeakAddr<dyn NodeStateObserver>,
 }
 
+impl fmt::Display for NodeController {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "NodeController ({})", self.hostname)
+    }
+}
+
+impl fmt::Debug for NodeController {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+
 #[async_trait]
 impl Actor for NodeController {
+    #[tracing::instrument(skip(addr))]
     async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
@@ -48,6 +62,7 @@ impl Actor for NodeController {
 
 #[async_trait]
 impl Tick for NodeController {
+    #[tracing::instrument]
     async fn tick(&mut self) -> ActorResult<()> {
         if self.node_machine_timer.tick() {
             send!(self.addr.process_node_machine(None));
@@ -94,35 +109,37 @@ impl NodeController {
         }
     }
 
+    #[tracing::instrument]
     pub async fn provision_node(&mut self) {
         self.process_node_machine(Some(NodeMachineEvent::ProvisionNode))
             .await;
     }
 
+    #[tracing::instrument]
     pub async fn discovered_node(&mut self, discovery_data: NodeDiscoveryData) {
         self.process_node_machine(Some(NodeMachineEvent::DiscoveredNode { discovery_data }))
             .await;
     }
 
+    #[tracing::instrument]
     pub async fn explored_node(&mut self, node_info: CloudNodeInfo) {
         self.process_node_machine(Some(NodeMachineEvent::ExploredNode { node_info }))
             .await;
     }
 
+    #[tracing::instrument]
     pub async fn activate_node(&mut self) {
         self.process_node_machine(Some(NodeMachineEvent::ActivateNode))
             .await;
     }
 
+    #[tracing::instrument]
     pub async fn deprovision_node(&mut self, cause: NodeDrainingCause) {
         self.process_node_machine(Some(NodeMachineEvent::DeprovisionNode { cause }))
             .await;
     }
 
-    async fn stop(&mut self) -> ActorResult<()> {
-        Produces::ok(())
-    }
-
+    #[tracing::instrument]
     async fn process_node_machine(&mut self, event: Option<NodeMachineEvent>) {
         info!("Process node machine {}", self.hostname);
 
