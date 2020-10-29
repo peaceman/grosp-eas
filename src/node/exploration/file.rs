@@ -37,12 +37,17 @@ impl FileNodeExploration {
 
 #[async_trait]
 impl Actor for FileNodeExploration {
-    #[tracing::instrument(skip(addr))]
+    #[tracing::instrument(
+        name = "FileNodeExploration::started"
+        skip(self, addr),
+        fields(path = %self.directory_path.display())
+    )]
     async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
     {
-        info!("Started {}", self);
+        info!("Started");
+
         self.addr = addr.downgrade();
 
         self.timer
@@ -70,7 +75,6 @@ impl fmt::Debug for FileNodeExploration {
 
 #[async_trait]
 impl Tick for FileNodeExploration {
-    #[tracing::instrument]
     async fn tick(&mut self) -> ActorResult<()> {
         if self.timer.tick() {
             send!(self.addr.explore());
@@ -81,18 +85,18 @@ impl Tick for FileNodeExploration {
 }
 
 impl FileNodeExploration {
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "FileNodeExploration::explore"
+        skip(self),
+        fields(path = %self.directory_path.display())
+    )]
     async fn explore(&mut self) {
-        info!("Start exploration {}", self);
-
         let nodes = scan_for_nodes(&self.directory_path).await;
 
         for node in nodes {
             info!("Explored node {:?}", node);
             send!(self.exploration_observer.observe_node_exploration(node));
         }
-
-        info!("Finished exploration {}", self);
     }
 }
 

@@ -44,12 +44,16 @@ impl fmt::Debug for NodeController {
 
 #[async_trait]
 impl Actor for NodeController {
-    #[tracing::instrument(skip(addr))]
+    #[tracing::instrument(
+        name = "NodeController::started",
+        skip(self, addr),
+        fields(hostname = %self.hostname)
+    )]
     async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
     {
-        info!("Started NodeController {}", self.hostname);
+        info!("Started");
 
         self.addr = addr.downgrade();
 
@@ -62,7 +66,6 @@ impl Actor for NodeController {
 
 #[async_trait]
 impl Tick for NodeController {
-    #[tracing::instrument]
     async fn tick(&mut self) -> ActorResult<()> {
         if self.node_machine_timer.tick() {
             send!(self.addr.process_node_machine(None));
@@ -109,40 +112,62 @@ impl NodeController {
         }
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "NodeController::provision_node",
+        skip(self),
+        fields(hostname = %self.hostname)
+    )]
     pub async fn provision_node(&mut self) {
         self.process_node_machine(Some(NodeMachineEvent::ProvisionNode))
             .await;
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "NodeController::discovered_node",
+        skip(self, discovery_data),
+        fields(hostname = %self.hostname)
+    )]
     pub async fn discovered_node(&mut self, discovery_data: NodeDiscoveryData) {
         self.process_node_machine(Some(NodeMachineEvent::DiscoveredNode { discovery_data }))
             .await;
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "NodeController::explored_node",
+        skip(self, node_info),
+        fields(hostname = %self.hostname)
+    )]
     pub async fn explored_node(&mut self, node_info: CloudNodeInfo) {
         self.process_node_machine(Some(NodeMachineEvent::ExploredNode { node_info }))
             .await;
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "NodeController::activate_node",
+        skip(self),
+        fields(hostname = %self.hostname)
+    )]
     pub async fn activate_node(&mut self) {
         self.process_node_machine(Some(NodeMachineEvent::ActivateNode))
             .await;
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "NodeController::deprovision_node",
+        skip(self),
+        fields(hostname = %self.hostname)
+    )]
     pub async fn deprovision_node(&mut self, cause: NodeDrainingCause) {
         self.process_node_machine(Some(NodeMachineEvent::DeprovisionNode { cause }))
             .await;
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "NodeController::process_node_machine",
+        skip(self),
+        fields(hostname = %self.hostname)
+    )]
     async fn process_node_machine(&mut self, event: Option<NodeMachineEvent>) {
-        info!("Process node machine {}", self.hostname);
-
         self.node_machine = Some(
             self.node_machine
                 .take()

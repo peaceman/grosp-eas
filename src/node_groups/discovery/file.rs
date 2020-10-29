@@ -40,12 +40,16 @@ impl FileNodeGroupDiscovery {
 
 #[async_trait]
 impl Actor for FileNodeGroupDiscovery {
-    #[tracing::instrument(skip(addr))]
+    #[tracing::instrument(
+        name = "FileNodeGroupDiscovery::started"
+        skip(self, addr),
+        fields(path = %self.directory_path.display())
+    )]
     async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
     {
-        info!("Started {}", self);
+        info!("Started");
 
         self.addr = addr.downgrade();
 
@@ -58,7 +62,6 @@ impl Actor for FileNodeGroupDiscovery {
 
 #[async_trait]
 impl Tick for FileNodeGroupDiscovery {
-    #[tracing::instrument]
     async fn tick(&mut self) -> ActorResult<()> {
         if self.timer.tick() {
             send!(self.addr.discover());
@@ -75,10 +78,12 @@ impl Drop for FileNodeGroupDiscovery {
 }
 
 impl FileNodeGroupDiscovery {
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "FileNodeGroupDiscovery::discover"
+        skip(self),
+        fields(path = %self.directory_path.display())
+    )]
     async fn discover(&self) {
-        info!("Start discovery {}", self);
-
         let node_groups = scan_for_node_groups(&self.directory_path).await;
 
         for node_group in node_groups.into_iter() {
@@ -87,8 +92,6 @@ impl FileNodeGroupDiscovery {
                 .discovery_observer
                 .observe_node_group_discovery(node_group));
         }
-
-        info!("Finished discovery {}", self);
     }
 }
 

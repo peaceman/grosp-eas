@@ -70,12 +70,12 @@ impl fmt::Debug for NodeGroupsController {
 
 #[async_trait]
 impl Actor for NodeGroupsController {
-    #[tracing::instrument(skip(addr))]
+    #[tracing::instrument(name = "NodeGroupsController::started", skip(self, addr))]
     async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
     {
-        info!("Started {}", self);
+        info!("Started");
 
         self.addr = addr.downgrade();
 
@@ -88,7 +88,6 @@ impl Actor for NodeGroupsController {
 
 #[async_trait]
 impl Tick for NodeGroupsController {
-    #[tracing::instrument]
     async fn tick(&mut self) -> ActorResult<()> {
         if self.timer.tick() {
             send!(self.addr.process_node_groups());
@@ -100,16 +99,20 @@ impl Tick for NodeGroupsController {
 
 #[async_trait]
 impl NodeGroupDiscoveryObserver for NodeGroupsController {
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "NodeGroupsController::observe_node_group_discovery",
+        skip(self, node_group),
+        fields(group = %node_group.name),
+    )]
     async fn observe_node_group_discovery(&mut self, node_group: NodeGroup) {
         match self.node_groups.get_mut(&node_group.name) {
             Some(ngmo) => {
-                info!("Discovered already known node group {:?}", &node_group.name);
+                info!("Discovered already known node group");
                 let ngm = ngmo.take().unwrap();
                 *ngmo = Some(ngm.handle(Some(state_machine::Event::Discovered)).await);
             }
             None => {
-                info!("Discovered new node group {:?}", &node_group.name);
+                info!("Discovered new node group");
                 self.node_groups.insert(
                     node_group.name.clone(),
                     Some(NodeGroupMachine::new(
@@ -128,7 +131,11 @@ impl NodeGroupDiscoveryObserver for NodeGroupsController {
 
 #[async_trait]
 impl NodeDiscoveryObserver for NodeGroupsController {
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "NodeGroupsController::observe_node_discovery",
+        skip(self, data),
+        fields(group = %data.group, hostname = %data.hostname),
+    )]
     async fn observe_node_discovery(&mut self, data: NodeDiscoveryData) {
         match self.node_groups.get_mut(&data.group) {
             Some(ngmo) => {
@@ -141,10 +148,7 @@ impl NodeDiscoveryObserver for NodeGroupsController {
                 );
             }
             None => {
-                info!(
-                    "Received node discovery for non existing node group; re-initializing {}",
-                    data.group
-                );
+                info!("Received node discovery for non existing node group; re-initializing");
 
                 let group_name = data.group.clone();
                 let ngm = self.create_running_node_group_machine(&group_name).await;
@@ -163,7 +167,11 @@ impl NodeDiscoveryObserver for NodeGroupsController {
 
 #[async_trait]
 impl NodeExplorationObserver for NodeGroupsController {
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(
+        name = "NodeGroupsController::observe_node_exploration",
+        skip(self, node_info),
+        fields(group = %node_info.group, hostname = %node_info.hostname),
+    )]
     async fn observe_node_exploration(&mut self, node_info: CloudNodeInfo) {
         match self.node_groups.get_mut(&node_info.group) {
             Some(ngmo) => {
@@ -174,10 +182,7 @@ impl NodeExplorationObserver for NodeGroupsController {
                 );
             }
             None => {
-                info!(
-                    "Received node exploration for non existing node group; re-initializing {}",
-                    node_info.group
-                );
+                info!("Received node exploration for non existing node group; re-initializing");
 
                 let group_name = node_info.group.clone();
                 let ngm = self.create_running_node_group_machine(&group_name).await;
@@ -193,10 +198,8 @@ impl NodeExplorationObserver for NodeGroupsController {
 }
 
 impl NodeGroupsController {
-    #[tracing::instrument]
+    #[tracing::instrument(name = "NodeGroupsController::process_node_groups", skip(self))]
     async fn process_node_groups(&mut self) {
-        info!("Process node groups");
-
         for ngmo in self.node_groups.values_mut() {
             *ngmo = Some(process_node_group_machine(ngmo.take().unwrap(), None).await)
         }
@@ -211,7 +214,11 @@ impl NodeGroupsController {
         })
     }
 
-    #[tracing::instrument(fields(group_name = group_name.as_ref()))]
+    #[tracing::instrument(
+        name = "NodeGroupsController::create_running_node_group_machine", 
+        skip(self, group_name),
+        fields(group = group_name.as_ref())
+    )]
     async fn create_running_node_group_machine(
         &self,
         group_name: impl AsRef<str>,
@@ -233,7 +240,6 @@ impl NodeGroupsController {
     }
 }
 
-#[tracing::instrument]
 async fn process_node_group_machine(
     ngm: NodeGroupMachine,
     event: Option<Event>,

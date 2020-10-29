@@ -35,12 +35,17 @@ impl FileNodeDiscovery {
 
 #[async_trait]
 impl Actor for FileNodeDiscovery {
-    #[tracing::instrument(skip(addr))]
+    #[tracing::instrument(
+        name = "FileNodeDiscovery::started"
+        skip(self, addr),
+        fields(path = %self.directory_path.display())
+    )]
     async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
     {
-        info!("Started {}", self);
+        info!("Started");
+
         self.addr = addr.downgrade();
 
         self.timer
@@ -68,7 +73,6 @@ impl fmt::Debug for FileNodeDiscovery {
 
 #[async_trait]
 impl Tick for FileNodeDiscovery {
-    #[tracing::instrument]
     async fn tick(&mut self) -> ActorResult<()> {
         if self.timer.tick() {
             send!(self.addr.discover());
@@ -79,10 +83,12 @@ impl Tick for FileNodeDiscovery {
 }
 
 impl FileNodeDiscovery {
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "FileNodeDiscovery::discover"
+        skip(self),
+        fields(path = %self.directory_path.display())
+    )]
     async fn discover(&mut self) {
-        info!("Start discovery {}", self);
-
         let node_discoveries = scan_for_node_discoveries(&self.directory_path).await;
 
         for node_discovery in node_discoveries {
@@ -91,8 +97,6 @@ impl FileNodeDiscovery {
                 .discovery_observer
                 .observe_node_discovery(node_discovery));
         }
-
-        info!("Finished discovery {}", self);
     }
 }
 

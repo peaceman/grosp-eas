@@ -46,7 +46,11 @@ pub struct Initializing;
 
 #[async_trait]
 impl Handler for Data<Initializing> {
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "NodeGroupMachine::Initializing::handle"
+        skip(self),
+        fields(group = self.shared.node_group.name.as_str())
+    )]
     async fn handle(self, event: Option<Event>) -> NodeGroupMachine {
         match event {
             Some(Event::Initialize) => {
@@ -79,7 +83,11 @@ pub struct Running {
 
 #[async_trait]
 impl Handler for Data<Running> {
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "NodeGroupMachine::Running::handle"
+        skip(self),
+        fields(group = self.shared.node_group.name.as_str())
+    )]
     async fn handle(self, event: Option<Event>) -> NodeGroupMachine {
         match event {
             Some(Event::Discovered) => NodeGroupMachine::Running(Data {
@@ -108,15 +116,14 @@ impl Handler for Data<Running> {
 }
 
 impl Data<Running> {
-    #[tracing::instrument]
     async fn check_last_discovery(self) -> NodeGroupMachine {
         let should_discard = Instant::now().duration_since(self.state.last_discovery)
             > self.shared.discovery_timeout;
 
         if should_discard {
             info!(
-                "NodeGroup reached discovery timeout {}",
-                self.shared.node_group.name
+                timeout_secs = self.shared.discovery_timeout.as_secs(),
+                "NodeGroup reached discovery timeout",
             );
             self.handle(Some(Event::Discard)).await
         } else {
@@ -138,12 +145,13 @@ impl Discarding {
 
 #[async_trait]
 impl Handler for Data<Discarding> {
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "NodeGroupMachine::Discarding::handle"
+        skip(self),
+        fields(group = self.shared.node_group.name.as_str())
+    )]
     async fn handle(mut self, _event: Option<Event>) -> NodeGroupMachine {
-        info!(
-            "Trigger NodeGroupScaler termination {}",
-            self.shared.node_group.name
-        );
+        info!("Trigger NodeGroupScaler termination");
         send!(self.state.scaler.terminate());
 
         let scaler_is_terminated = tokio::select! {
@@ -198,7 +206,7 @@ impl NodeGroupMachine {
             state: Initializing,
         })
     }
-    #[tracing::instrument]
+
     pub async fn handle(self, event: Option<Event>) -> Self {
         match self {
             Self::Initializing(m) => m.handle(event).await,

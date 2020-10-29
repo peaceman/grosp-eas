@@ -17,7 +17,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::fmt;
 use std::time::Duration;
-use tracing::info;
+use tracing::{info, trace};
 
 pub struct NodeGroupScaler {
     node_group: NodeGroup,
@@ -71,12 +71,18 @@ impl fmt::Debug for NodeGroupScaler {
 
 #[async_trait]
 impl Actor for NodeGroupScaler {
-    #[tracing::instrument(skip(addr))]
+    #[tracing::instrument(
+        name = "NodeGroupScaler::started",
+        skip(self, addr),
+        fields(
+            group = %self.node_group.name,
+        )
+    )]
     async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
     {
-        info!("Started {}", self);
+        info!("Started");
 
         self.addr = addr.downgrade();
 
@@ -89,7 +95,6 @@ impl Actor for NodeGroupScaler {
 
 #[async_trait]
 impl Tick for NodeGroupScaler {
-    #[tracing::instrument]
     async fn tick(&mut self) -> ActorResult<()> {
         if self.timer.tick() {
             send!(self.addr.scale());
@@ -107,11 +112,17 @@ impl Drop for NodeGroupScaler {
 
 #[async_trait]
 impl NodeDiscoveryObserver for NodeGroupScaler {
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "NodeGroupScaler::observe_node_discovery",
+        skip(self, data),
+        fields(
+            group = %self.node_group.name,
+        )
+    )]
     async fn observe_node_discovery(&mut self, data: NodeDiscoveryData) {
-        info!(
-            "Observed node discovery ({}) {:?}",
-            self.node_group.name, data
+        trace!(
+            hostname = data.hostname.as_str(),
+            state = format!("{:?}", data.state).as_str()
         );
 
         if !self.nodes.contains_key(&data.hostname) {
@@ -128,11 +139,17 @@ impl NodeDiscoveryObserver for NodeGroupScaler {
 
 #[async_trait]
 impl NodeExplorationObserver for NodeGroupScaler {
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "NodeGroupScaler::observe_node_exploration",
+        skip(self, node_info),
+        fields(
+            group = %self.node_group.name,
+        )
+    )]
     async fn observe_node_exploration(&mut self, node_info: CloudNodeInfo) {
-        info!(
-            "Observed node exploration ({}) {:?}",
-            self.node_group.name, node_info
+        trace!(
+            hostname = node_info.hostname.as_str(),
+            identifier = node_info.identifier.as_str(),
         );
 
         if !self.nodes.contains_key(&node_info.hostname) {
@@ -148,11 +165,15 @@ impl NodeExplorationObserver for NodeGroupScaler {
 
 #[async_trait]
 impl NodeStateObserver for NodeGroupScaler {
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "NodeGroupScaler::observe_node_state",
+        skip(self, state_info),
+        fields(group = %self.node_group.name)
+    )]
     async fn observe_node_state(&mut self, state_info: NodeStateInfo) {
-        info!(
-            "Observed node state ({}) {:?}",
-            self.node_group.name, state_info
+        trace!(
+            hostname = state_info.hostname.as_str(),
+            state = format!("{:?}", state_info.state).as_str()
         );
 
         if let Some(scaling_node) = self.nodes.get_mut(&state_info.hostname) {
@@ -163,12 +184,16 @@ impl NodeStateObserver for NodeGroupScaler {
 
 #[async_trait]
 impl NodeStatsObserver for NodeGroupScaler {
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "NodeGroupScaler::observe_node_stats",
+        skip(self, stats_info),
+        fields(
+            group = %self.node_group.name,
+            hostname = %stats_info.hostname
+        )
+    )]
     async fn observe_node_stats(&mut self, stats_info: NodeStatsInfo) {
-        info!(
-            "Observed node stats ({}) {:?}",
-            self.node_group.name, stats_info
-        );
+        trace!(stats = format!("{:?}", stats_info.stats).as_str());
 
         if let Some(scaling_node) = self.nodes.get_mut(&stats_info.hostname) {
             scaling_node.last_stats = Some(stats_info.stats);
@@ -177,16 +202,21 @@ impl NodeStatsObserver for NodeGroupScaler {
 }
 
 impl NodeGroupScaler {
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "NodeGroupScaler::terminate",
+        skip(self),
+        fields(
+            group = %self.node_group.name
+        )
+    )]
     pub async fn terminate(&mut self) -> ActorResult<()> {
-        info!("Terminate {}", self);
-
         for scaling_node in self.nodes.values() {
             send!(scaling_node
                 .controller
                 .deprovision_node(NodeDrainingCause::Termination));
         }
 
+        trace!(remaining_nodes = self.nodes.len());
         if self.nodes.is_empty() {
             Err(format!("Terminated all nodes {}", self).into())
         } else {
@@ -194,16 +224,26 @@ impl NodeGroupScaler {
         }
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "NodeGroupScaler::scale",
+        skip(self),
+        fields(
+            group = %self.node_group.name
+        )
+    )]
     async fn scale(&mut self) -> ActorResult<()> {
-        info!("Scale {}", self.node_group.name);
-
         self.remove_deprovisioned_nodes();
 
         Produces::ok(())
     }
 
-    #[tracing::instrument]
+    #[tracing::instrument(
+        name = "NodeGroupScaler::remove_deprovisioned_nodes",
+        skip(self),
+        fields(
+            group = %self.node_group.name
+        )
+    )]
     fn remove_deprovisioned_nodes(&mut self) {
         self.nodes
             .retain(|_, scaling_node| match scaling_node.state {
@@ -212,14 +252,15 @@ impl NodeGroupScaler {
             });
     }
 
-    #[tracing::instrument(fields(hostname = hostname.as_ref()))]
+    #[tracing::instrument(
+        name = "NodeGroupScaler::create_scaling_node",
+        skip(self, hostname),
+        fields(
+            group = %self.node_group.name,
+            hostname = %hostname.as_ref()
+        )
+    )]
     fn create_scaling_node(&self, hostname: impl AsRef<str>) -> ScalingNode {
-        info!(
-            "Create scaling node ({}) {}",
-            self.node_group.name,
-            hostname.as_ref()
-        );
-
         let node_controller = NodeController::new(
             hostname.as_ref().into(),
             upcast!(self.addr.clone()),

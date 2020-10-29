@@ -19,10 +19,14 @@ use crate::node::{
 };
 use act_zero::{call, send, Addr, WeakAddr};
 use async_trait::async_trait;
+use std::convert::AsRef;
+use std::fmt;
+use std::string::ToString;
 use std::time::{Duration, Instant};
-use tracing::{error, info};
+use strum_macros::AsRefStr;
+use tracing::{error, info, trace};
 
-#[derive(Debug)]
+#[derive(strum_macros::Display, Debug)]
 pub enum NodeMachine {
     Initializing(Data<Initializing>),
     Provisioning(Data<Provisioning>),
@@ -235,7 +239,9 @@ impl NodeMachine {
     ) -> Self {
         let handler = NodeMachineProgressHandler::new(node_state_observer);
 
-        match self {
+        let old_state = self.to_string();
+
+        let result = match self {
             Self::Initializing(m) => handler.progress(m, event).await,
             Self::Provisioning(m) => handler.progress(m, event).await,
             Self::Exploring(m) => handler.progress(m, event).await,
@@ -245,7 +251,14 @@ impl NodeMachine {
             Self::Draining(m) => handler.progress(m, event).await,
             Self::Deprovisioning(m) => handler.progress(m, event).await,
             Self::Deprovisioned(m) => handler.progress(m, event).await,
+        };
+
+        let new_state = result.to_string();
+        if old_state != new_state {
+            info!(%old_state, %new_state, "Transition");
         }
+
+        result
     }
 
     async fn handle_data<T: Handler>(

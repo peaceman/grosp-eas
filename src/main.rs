@@ -14,6 +14,8 @@ use edge_auto_scaler::node_groups::discovery::FileNodeGroupDiscovery;
 use edge_auto_scaler::node_groups::NodeGroupsController;
 use env_logger::Env;
 use futures::task::Context;
+use opentelemetry::api::Provider;
+use opentelemetry::sdk;
 use std::net::IpAddr;
 use std::time::Duration;
 use tokio::macros::support::{Pin, Poll};
@@ -25,22 +27,44 @@ use tracing_subscriber::fmt::Subscriber;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{EnvFilter, Registry};
 
-fn init_logging() {
+fn init_logging() -> Result<(), Box<dyn std::error::Error>> {
     // env_logger::from_env(Env::default().default_filter_or("info")).init();
+    let exporter = opentelemetry_jaeger::Exporter::builder()
+        .with_agent_endpoint("127.0.0.1:6831".parse()?)
+        .with_process(opentelemetry_jaeger::Process {
+            service_name: "edge_auto_scaler".into(),
+            tags: vec![],
+        })
+        .init()
+        .expect("Error initializing Jaeger exporter");
+
+    let provider = sdk::Provider::builder()
+        .with_simple_exporter(exporter)
+        .with_config(sdk::Config {
+            default_sampler: Box::new(sdk::Sampler::AlwaysOn),
+            ..Default::default()
+        })
+        .build();
+
+    let telemetry = tracing_opentelemetry::layer().with_tracer(provider.get_tracer(""));
 
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("trace"));
-    let formatting_layer = BunyanFormattingLayer::new("edge-auto-scaler".into(), std::io::stdout);
+
+    let fmt_layer = tracing_subscriber::fmt::layer().with_target(false);
 
     let subscriber = Registry::default()
         .with(env_filter)
-        .with(tracing_subscriber::fmt::layer());
+        .with(telemetry)
+        .with(fmt_layer);
 
     set_global_default(subscriber).expect("Failed to set subscriber");
+
+    Ok(())
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    init_logging();
+    init_logging()?;
 
     let stream_factory = Box::new(StreamFactory);
     let node_discovery_provider = spawn_actor(MockNodeDiscovery);
