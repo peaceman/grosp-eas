@@ -8,7 +8,7 @@ use edge_auto_scaler::node::discovery::{
     FileNodeDiscovery, NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState,
 };
 use edge_auto_scaler::node::exploration::FileNodeExploration;
-use edge_auto_scaler::node::stats::NodeStatsStreamFactory;
+use edge_auto_scaler::node::stats::{FileNodeStatsStream, NodeStatsStreamFactory};
 use edge_auto_scaler::node::{NodeController, NodeDrainingCause, NodeStats};
 use edge_auto_scaler::node_groups::discovery::FileNodeGroupDiscovery;
 use edge_auto_scaler::node_groups::NodeGroupsController;
@@ -19,7 +19,7 @@ use opentelemetry::sdk;
 use std::net::IpAddr;
 use std::time::Duration;
 use tokio::macros::support::{Pin, Poll};
-use tokio::stream::Stream;
+use tokio::stream::{Stream, StreamExt};
 use tracing::info;
 use tracing::subscriber::set_global_default;
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};

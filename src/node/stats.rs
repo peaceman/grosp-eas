@@ -1,6 +1,10 @@
+mod file;
+
 use crate::node::NodeStats;
 use std::fmt::Debug;
 use tokio::stream::Stream;
+
+pub use file::FileNodeStatsStream;
 
 pub trait NodeStatsStreamFactory: Send + Sync + CloneNodeStatsStreamFactory + Debug {
     fn create_stream(&self, hostname: String) -> Box<dyn Stream<Item = NodeStats> + Unpin + Send>;
