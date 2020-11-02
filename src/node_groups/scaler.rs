@@ -6,8 +6,8 @@ use crate::node::discovery::{
 use crate::node::exploration::NodeExplorationObserver;
 use crate::node::stats::NodeStatsStreamFactory;
 use crate::node::{
-    NodeController, NodeDrainingCause, NodeState, NodeStateInfo, NodeStateObserver, NodeStats,
-    NodeStatsInfo, NodeStatsObserver,
+    Node, NodeController, NodeDrainingCause, NodeState, NodeStateInfo, NodeStateObserver,
+    NodeStats, NodeStatsInfo, NodeStatsObserver,
 };
 use crate::node_groups::NodeGroup;
 use act_zero::runtimes::tokio::{spawn_actor, Timer};
@@ -262,7 +262,10 @@ impl NodeGroupScaler {
     )]
     fn create_scaling_node(&self, hostname: impl AsRef<str>) -> ScalingNode {
         let node_controller = NodeController::new(
-            hostname.as_ref().into(),
+            Node {
+                hostname: hostname.as_ref().clone().into(),
+                group: self.node_group.name.clone(),
+            },
             upcast!(self.addr.clone()),
             upcast!(self.addr.clone()),
             self.node_discovery_provider.clone(),

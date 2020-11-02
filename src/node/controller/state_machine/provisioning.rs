@@ -46,7 +46,7 @@ impl Data<Provisioning> {
     }
 
     async fn provision_node(mut self) -> NodeMachine {
-        info!("Provision node {}", self.shared.hostname);
+        info!("Provision node");
 
         match self.state.node_info.as_ref() {
             None => self.create_node().await,
@@ -56,16 +56,16 @@ impl Data<Provisioning> {
     }
 
     async fn create_node(self) -> NodeMachine {
-        info!("Create node via CloudProvider {}", self.shared.hostname);
+        info!("Create node via CloudProvider");
 
         let create_node_result = call!(self
             .shared
             .cloud_provider
-            .create_node(self.shared.hostname.clone()))
+            .create_node(self.shared.node.hostname.clone()))
         .await;
 
         if let Err(e) = create_node_result {
-            error!("Failed to create node {} {:?}", self.shared.hostname, e);
+            error!("Failed to create node {:?}", e);
         }
 
         NodeMachine::Provisioning(Data {
@@ -81,20 +81,20 @@ impl Data<Provisioning> {
         let node_info = self.state.node_info.as_ref().unwrap();
 
         info!(
-            "Create dns records via DnsProvider {} addresses {:?}",
-            self.shared.hostname, node_info.ip_addresses
+            "Create dns records via DnsProvider; addresses {:?}",
+            node_info.ip_addresses
         );
 
-        let create_records_result = call!(self
-            .shared
-            .dns_provider
-            .create_records(self.shared.hostname.clone(), node_info.ip_addresses.clone()))
+        let create_records_result = call!(self.shared.dns_provider.create_records(
+            self.shared.node.hostname.clone(),
+            node_info.ip_addresses.clone()
+        ))
         .await;
 
         if let Err(e) = create_records_result {
             error!(
-                "Failed to create dns records {} addresses {:?}",
-                self.shared.hostname, node_info.ip_addresses
+                "Failed to create dns records; addresses {:?}",
+                node_info.ip_addresses
             );
         }
 

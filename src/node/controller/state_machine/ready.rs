@@ -8,7 +8,7 @@ impl Handler for Data<Ready> {
     async fn handle(self, event: Option<NodeMachineEvent>) -> NodeMachine {
         match event {
             Some(NodeMachineEvent::ActivateNode) => {
-                info!("Activate Node {}", self.shared.hostname);
+                info!("Activate Node");
 
                 NodeMachine::Active(Data {
                     shared: self.shared,
@@ -22,7 +22,7 @@ impl Handler for Data<Ready> {
                         ..
                     },
             }) => {
-                info!("Discovered ready node {}", self.shared.hostname);
+                info!("Discovered ready node");
 
                 NodeMachine::Ready(Data {
                     shared: self.shared,
@@ -33,7 +33,7 @@ impl Handler for Data<Ready> {
                 })
             }
             _ if self.reached_discovery_timeout() => {
-                info!("Reached node discovery timeout {}", self.shared.hostname);
+                info!("Reached node discovery timeout");
 
                 NodeMachine::Deprovisioning(Data {
                     shared: self.shared,

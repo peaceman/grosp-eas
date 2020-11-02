@@ -26,10 +26,7 @@ impl Handler for Data<Deprovisioning> {
 
 impl Data<Deprovisioning> {
     async fn delete_node(self) -> NodeMachine {
-        info!(
-            "Delete node {} {:?}",
-            self.shared.hostname, self.state.node_info
-        );
+        info!("Delete node {:?}", self.state.node_info);
 
         let node_info = self.state.node_info.clone().unwrap();
 
@@ -39,10 +36,7 @@ impl Data<Deprovisioning> {
         let deleted_node = match result {
             Ok(_) => true,
             Err(e) => {
-                error!(
-                    "Failed deleting node {} {:?} {:?}",
-                    self.shared.hostname, self.state.node_info, e
-                );
+                error!("Failed deleting node {:?} {:?}", self.state.node_info, e);
 
                 false
             }
@@ -58,21 +52,18 @@ impl Data<Deprovisioning> {
     }
 
     async fn delete_dns_records(self) -> NodeMachine {
-        info!("Delete dns records {}", self.shared.hostname);
+        info!("Delete dns records");
 
         let result_fut = call!(self
             .shared
             .dns_provider
-            .delete_records(self.shared.hostname.clone()));
+            .delete_records(self.shared.node.hostname.clone()));
         let result = result_fut.await;
 
         let deleted_dns_records = match result {
             Ok(_) => true,
             Err(e) => {
-                error!(
-                    "Failed deleting dns records {} {:?}",
-                    self.shared.hostname, e
-                );
+                error!("Failed deleting dns records {:?}", e);
 
                 false
             }

@@ -13,10 +13,7 @@ impl Handler for Data<Active> {
     async fn handle(self, event: Option<NodeMachineEvent>) -> NodeMachine {
         match event {
             Some(NodeMachineEvent::DeprovisionNode { cause }) => {
-                info!(
-                    "Deprovision node {} cause {:?}",
-                    self.shared.hostname, cause
-                );
+                info!("Deprovision node, cause {:?}", cause);
 
                 NodeMachine::Draining(Data {
                     shared: self.shared,
@@ -30,7 +27,7 @@ impl Handler for Data<Active> {
                         ..
                     },
             }) => {
-                info!("Discovered active node {}", self.shared.hostname);
+                info!("Discovered active node");
 
                 NodeMachine::Active(Data {
                     shared: self.shared,
@@ -41,7 +38,7 @@ impl Handler for Data<Active> {
                 })
             }
             _ if self.reached_discovery_timeout() => {
-                info!("Reached node discovery timeout {}", self.shared.hostname);
+                info!("Reached node discovery timeout");
 
                 NodeMachine::Deprovisioning(Data {
                     shared: self.shared,
@@ -57,19 +54,16 @@ impl Handler for Data<Active> {
 
 impl Data<Active> {
     async fn mark_as_active(mut self) -> NodeMachine {
-        info!("Mark node as active {}", self.shared.hostname);
+        info!("Mark node as active");
 
-        let update_state_result = call!(self
-            .shared
-            .node_discovery_provider
-            .update_state(self.shared.hostname.clone(), NodeDiscoveryState::Active))
+        let update_state_result = call!(self.shared.node_discovery_provider.update_state(
+            self.shared.node.hostname.clone(),
+            NodeDiscoveryState::Active
+        ))
         .await;
 
         if let Err(e) = update_state_result {
-            error!(
-                "Failed to mark node as active {} {:?}",
-                self.shared.hostname, e
-            );
+            error!("Failed to mark node as active {:?}", e);
         } else {
             self.state.marked_as_active = true;
         }
@@ -87,10 +81,10 @@ impl Data<Active> {
     }
 
     fn start_stats_streamer(mut self) -> NodeMachine {
-        info!("Start stats streamer actor {}", self.shared.hostname);
+        info!("Start stats streamer actor");
 
         self.state.stats_streamer = Some(spawn_actor(StatsStreamer::new(
-            self.shared.hostname.clone(),
+            self.shared.node.hostname.clone(),
             self.shared.node_stats_observer.clone(),
             self.shared.node_stats_stream_factory.clone(),
         )));

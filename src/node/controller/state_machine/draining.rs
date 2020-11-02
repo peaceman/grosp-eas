@@ -10,10 +10,7 @@ impl Handler for Data<Draining> {
     async fn handle(self, event: Option<NodeMachineEvent>) -> NodeMachine {
         match (event, &self.state.cause) {
             (None, _) if self.reached_draining_time() => {
-                info!(
-                    "Reached draining time of node {} start de-provisioning",
-                    self.shared.hostname
-                );
+                info!("Reached draining time of node; start de-provisioning");
 
                 NodeMachine::Deprovisioning(Data {
                     shared: self.shared,
@@ -21,7 +18,7 @@ impl Handler for Data<Draining> {
                 })
             }
             (Some(NodeMachineEvent::ActivateNode), NodeDrainingCause::Scaling) => {
-                info!("Re-activate draining node {}", self.shared.hostname);
+                info!("Re-activate draining node");
 
                 NodeMachine::Active(Data {
                     shared: self.shared,
@@ -41,19 +38,16 @@ impl Data<Draining> {
     }
 
     async fn mark_as_draining(mut self) -> NodeMachine {
-        info!("Mark node as draining {}", self.shared.hostname);
+        info!("Mark node as draining");
 
         let update_state_result = call!(self.shared.node_discovery_provider.update_state(
-            self.shared.hostname.clone(),
+            self.shared.node.hostname.clone(),
             NodeDiscoveryState::Draining(self.state.cause)
         ))
         .await;
 
         if let Err(e) = update_state_result {
-            error!(
-                "Failed to mark node as draining {} {:?}",
-                self.shared.hostname, e
-            );
+            error!("Failed to mark node as draining {:?}", e);
         } else {
             self.state.marked_as_draining = true;
         }

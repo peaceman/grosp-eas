@@ -9,10 +9,7 @@ impl Handler for Data<Discovering> {
     async fn handle(self, event: Option<NodeMachineEvent>) -> NodeMachine {
         match event {
             Some(NodeMachineEvent::DiscoveredNode { discovery_data }) => {
-                info!(
-                    "Discovered explored node {} {:?}",
-                    self.shared.hostname, discovery_data
-                );
+                info!("Discovered explored node {:?}", discovery_data);
 
                 match discovery_data.state {
                     NodeDiscoveryState::Ready => NodeMachine::Ready(Data {
@@ -30,7 +27,7 @@ impl Handler for Data<Discovering> {
                 }
             }
             Some(NodeMachineEvent::DeprovisionNode { .. }) => {
-                info!("De-provision node {}", self.shared.hostname);
+                info!("De-provision node");
 
                 NodeMachine::Deprovisioning(Data {
                     shared: self.shared,
@@ -38,10 +35,7 @@ impl Handler for Data<Discovering> {
                 })
             }
             _ if self.reached_discovery_timeout() => {
-                info!(
-                    "Node reached discovery timeout {} {:?}",
-                    self.shared.hostname, self.state.node_info
-                );
+                info!("Node reached discovery timeout {:?}", self.state.node_info);
 
                 NodeMachine::Deprovisioning(Data {
                     shared: self.shared,

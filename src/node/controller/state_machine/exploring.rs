@@ -10,7 +10,7 @@ impl Handler for Data<Exploring> {
     async fn handle(self, event: Option<NodeMachineEvent>) -> NodeMachine {
         match event {
             Some(NodeMachineEvent::DeprovisionNode { .. }) => {
-                info!("De-provision node {}", self.shared.hostname);
+                info!("De-provision node");
 
                 NodeMachine::Deprovisioning(Data {
                     shared: self.shared,
@@ -28,7 +28,7 @@ impl Data<Exploring> {
         let node_info = call!(self
             .shared
             .cloud_provider
-            .get_node_info(self.shared.hostname.clone()))
+            .get_node_info(self.shared.node.hostname.clone()))
         .await;
 
         if let Ok(Some(node_info)) = node_info {
@@ -47,10 +47,7 @@ impl Data<Exploring> {
                 }),
             }
         } else {
-            error!(
-                "Failed to fetch CloudNodeInfo for {}: {:?}",
-                self.shared.hostname, node_info
-            );
+            error!("Failed to fetch CloudNodeInfo {:?}", node_info);
             NodeMachine::Exploring(self)
         }
     }

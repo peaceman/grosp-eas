@@ -15,7 +15,7 @@ use crate::dns_provider::DnsProvider;
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryProvider};
 use crate::node::stats::NodeStatsStreamFactory;
 use crate::node::{
-    NodeDrainingCause, NodeState, NodeStateInfo, NodeStateObserver, NodeStatsObserver,
+    Node, NodeDrainingCause, NodeState, NodeStateInfo, NodeStateObserver, NodeStatsObserver,
 };
 use act_zero::{call, send, Addr, WeakAddr};
 use async_trait::async_trait;
@@ -63,7 +63,7 @@ pub struct Data<S: MachineState> {
 
 #[derive(Debug)]
 pub struct Shared {
-    hostname: String,
+    node: Node,
     node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
     cloud_provider: Addr<dyn CloudProvider>,
     dns_provider: Addr<dyn DnsProvider>,
@@ -210,7 +210,7 @@ pub struct Deprovisioned;
 
 impl NodeMachine {
     pub fn new(
-        hostname: String,
+        node: Node,
         node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
         cloud_provider: Addr<dyn CloudProvider>,
         dns_provider: Addr<dyn DnsProvider>,
@@ -221,7 +221,7 @@ impl NodeMachine {
         Self::Initializing(Data {
             state: Initializing {},
             shared: Shared {
-                hostname,
+                node,
                 node_discovery_provider,
                 cloud_provider,
                 dns_provider,
@@ -274,56 +274,56 @@ impl NodeMachine {
     fn publish_node_state(&self, node_state_observer: &WeakAddr<dyn NodeStateObserver>) {
         let node_state_info = match self {
             NodeMachine::Initializing(Data {
-                shared: Shared { hostname, .. },
+                shared: Shared { node, .. },
                 ..
             })
             | NodeMachine::Discovering(Data {
-                shared: Shared { hostname, .. },
+                shared: Shared { node, .. },
                 ..
             })
             | NodeMachine::Exploring(Data {
-                shared: Shared { hostname, .. },
+                shared: Shared { node, .. },
                 ..
             })
             | NodeMachine::Provisioning(Data {
-                shared: Shared { hostname, .. },
+                shared: Shared { node, .. },
                 ..
             })
             | NodeMachine::Deprovisioning(Data {
-                shared: Shared { hostname, .. },
+                shared: Shared { node, .. },
                 ..
             }) => NodeStateInfo {
                 state: NodeState::Unready,
-                hostname: hostname.clone(),
+                hostname: node.hostname.clone(),
             },
             NodeMachine::Ready(Data {
-                shared: Shared { hostname, .. },
+                shared: Shared { node, .. },
                 ..
             }) => NodeStateInfo {
                 state: NodeState::Ready,
-                hostname: hostname.clone(),
+                hostname: node.hostname.clone(),
             },
             NodeMachine::Active(Data {
-                shared: Shared { hostname, .. },
+                shared: Shared { node, .. },
                 ..
             }) => NodeStateInfo {
                 state: NodeState::Active,
-                hostname: hostname.clone(),
+                hostname: node.hostname.clone(),
             },
             NodeMachine::Draining(Data {
-                shared: Shared { hostname, .. },
+                shared: Shared { node, .. },
                 state: Draining { cause, .. },
                 ..
             }) => NodeStateInfo {
                 state: NodeState::Draining(cause.clone()),
-                hostname: hostname.clone(),
+                hostname: node.hostname.clone(),
             },
             NodeMachine::Deprovisioned(Data {
-                shared: Shared { hostname, .. },
+                shared: Shared { node, .. },
                 ..
             }) => NodeStateInfo {
                 state: NodeState::Deprovisioned,
-                hostname: hostname.clone(),
+                hostname: node.hostname.clone(),
             },
         };
 
