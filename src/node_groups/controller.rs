@@ -113,16 +113,23 @@ impl NodeGroupDiscoveryObserver for NodeGroupsController {
             }
             None => {
                 info!("Discovered new node group");
+
                 self.node_groups.insert(
                     node_group.name.clone(),
-                    Some(NodeGroupMachine::new(
-                        node_group,
-                        self.node_discovery_provider.clone(),
-                        self.cloud_provider.clone(),
-                        self.dns_provider.clone(),
-                        self.node_stats_stream_factory.clone(),
-                        self.node_group_max_retain_time.clone(),
-                    )),
+                    Some(
+                        process_node_group_machine(
+                            NodeGroupMachine::new(
+                                node_group,
+                                self.node_discovery_provider.clone(),
+                                self.cloud_provider.clone(),
+                                self.dns_provider.clone(),
+                                self.node_stats_stream_factory.clone(),
+                                self.node_group_max_retain_time.clone(),
+                            ),
+                            Some(state_machine::Event::Initialize),
+                        )
+                        .await,
+                    ),
                 );
             }
         }
