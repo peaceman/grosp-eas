@@ -22,7 +22,7 @@ impl fmt::Display for Node {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct NodeStats {
     pub tx_bps: u64,
     pub rx_bps: u64,

@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use tokio::stream::Stream;
 
 pub use file::FileNodeStatsStream;
+pub use file::FileNodeStatsStreamFactory;
 
 pub trait NodeStatsStreamFactory: Send + Sync + CloneNodeStatsStreamFactory + Debug {
     fn create_stream(&self, hostname: String) -> Box<dyn Stream<Item = NodeStats> + Unpin + Send>;
