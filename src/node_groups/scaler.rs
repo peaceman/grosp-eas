@@ -9,7 +9,7 @@ use crate::node::{
     Node, NodeController, NodeDrainingCause, NodeState, NodeStateInfo, NodeStateObserver,
     NodeStats, NodeStatsInfo, NodeStatsObserver,
 };
-use crate::node_groups::NodeGroup;
+use crate::node_groups::{Config, NodeGroup};
 use act_zero::runtimes::tokio::{spawn_actor, Timer};
 use act_zero::timer::Tick;
 use act_zero::{send, upcast, Actor, ActorResult, Addr, Produces, WeakAddr};
@@ -280,6 +280,17 @@ impl NodeGroupScaler {
                 NodeState::Deprovisioned => false,
                 _ => true,
             });
+    }
+
+    #[tracing::instrument(
+        name = "NodeGroupScaler:update_node_group_config",
+        skip(self),
+        fields(
+            group = %self.node_group.name
+        )
+    )]
+    pub async fn update_node_group_config(&mut self, node_group_config: Option<Config>) {
+        self.node_group.config = node_group_config;
     }
 
     #[tracing::instrument(

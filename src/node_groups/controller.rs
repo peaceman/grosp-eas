@@ -109,7 +109,10 @@ impl NodeGroupDiscoveryObserver for NodeGroupsController {
             Some(ngmo) => {
                 info!("Discovered already known node group");
                 let ngm = ngmo.take().unwrap();
-                *ngmo = Some(ngm.handle(Some(state_machine::Event::Discovered)).await);
+                *ngmo = Some(
+                    ngm.handle(Some(state_machine::Event::Discovered { node_group }))
+                        .await,
+                );
             }
             None => {
                 info!("Discovered new node group");

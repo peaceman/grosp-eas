@@ -14,7 +14,7 @@ use tracing::info;
 #[derive(Debug)]
 pub enum Event {
     Initialize,
-    Discovered,
+    Discovered { node_group: NodeGroup },
     Discard,
     DiscoveredNode { discovery_data: NodeDiscoveryData },
     ExploredNode { node_info: CloudNodeInfo },
@@ -90,13 +90,20 @@ impl Handler for Data<Running> {
     )]
     async fn handle(self, event: Option<Event>) -> NodeGroupMachine {
         match event {
-            Some(Event::Discovered) => NodeGroupMachine::Running(Data {
-                shared: self.shared,
-                state: Running {
-                    last_discovery: Instant::now(),
-                    ..self.state
-                },
-            }),
+            Some(Event::Discovered { node_group }) => {
+                send!(self
+                    .state
+                    .scaler
+                    .update_node_group_config(node_group.config));
+
+                NodeGroupMachine::Running(Data {
+                    shared: self.shared,
+                    state: Running {
+                        last_discovery: Instant::now(),
+                        ..self.state
+                    },
+                })
+            }
             Some(Event::Discard) => NodeGroupMachine::Discarding(Data {
                 shared: self.shared,
                 state: Discarding::new(self.state.scaler),
