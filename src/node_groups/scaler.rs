@@ -97,7 +97,11 @@ impl Actor for NodeGroupScaler {
 impl Tick for NodeGroupScaler {
     async fn tick(&mut self) -> ActorResult<()> {
         if self.timer.tick() {
-            send!(self.addr.scale());
+            send!(self.addr.remove_deprovisioned_nodes());
+
+            if self.node_group.config.is_some() {
+                send!(self.addr.scale());
+            }
         }
 
         Produces::ok(())
@@ -232,8 +236,6 @@ impl NodeGroupScaler {
         )
     )]
     async fn scale(&mut self) -> ActorResult<()> {
-        self.remove_deprovisioned_nodes();
-
         Produces::ok(())
     }
 
@@ -244,7 +246,7 @@ impl NodeGroupScaler {
             group = %self.node_group.name
         )
     )]
-    fn remove_deprovisioned_nodes(&mut self) {
+    async fn remove_deprovisioned_nodes(&mut self) {
         self.nodes
             .retain(|_, scaling_node| match scaling_node.state {
                 NodeState::Deprovisioned => false,
