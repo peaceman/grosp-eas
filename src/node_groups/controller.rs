@@ -232,6 +232,7 @@ impl NodeGroupsController {
     ) -> NodeGroupMachine {
         let node_group = NodeGroup {
             name: group_name.as_ref().into(),
+            config: None,
         };
 
         let ngm = NodeGroupMachine::new(
