@@ -18,7 +18,9 @@ use env_logger::Env;
 use futures::task::Context;
 use opentelemetry::api::Provider;
 use opentelemetry::sdk;
+use rand::Rng;
 use std::net::IpAddr;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::macros::support::{Pin, Poll};
 use tokio::stream::{Stream, StreamExt};
@@ -78,6 +80,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         upcast!(cloud_provider),
         upcast!(dns_provider),
         stream_factory.clone(),
+        Arc::new(vec!["beta.gt.n2305.link", "gamma.gt.n2305.link"]),
     ));
 
     let _node_group_discovery = spawn_actor(FileNodeGroupDiscovery::new(

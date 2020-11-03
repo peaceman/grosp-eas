@@ -6,9 +6,11 @@ use std::fmt;
 mod controller;
 pub mod discovery;
 pub mod exploration;
+mod hostname;
 pub mod stats;
 
 pub use controller::NodeController;
+pub use hostname::HostnameGenerator;
 
 #[derive(Debug, Clone)]
 pub struct Node {
@@ -39,14 +41,14 @@ pub trait NodeStatsObserver: Actor {
     async fn observe_node_stats(&mut self, stats_info: NodeStatsInfo) {}
 }
 
-#[derive(Debug, Copy, Clone, Deserialize)]
+#[derive(Debug, Copy, Clone, Deserialize, PartialEq)]
 pub enum NodeDrainingCause {
     Scaling,
     RollingUpdate,
     Termination,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum NodeState {
     Unready,
     Ready,
@@ -59,6 +61,20 @@ impl NodeState {
     pub fn is_active(&self) -> bool {
         match self {
             NodeState::Active => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_draining(&self, cause: NodeDrainingCause) -> bool {
+        match self {
+            NodeState::Draining(ic) if *ic == cause => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_ready(&self) -> bool {
+        match self {
+            NodeState::Ready => true,
             _ => false,
         }
     }

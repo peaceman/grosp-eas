@@ -27,7 +27,7 @@ pub struct BandwidthCapacity {
     pub rx_bps: u64,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Copy)]
 pub struct BandwidthThresholds {
     scale_up_percent: u8,
     scale_down_percent: u8,

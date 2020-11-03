@@ -6,8 +6,8 @@ use crate::node::discovery::{
 use crate::node::exploration::NodeExplorationObserver;
 use crate::node::stats::NodeStatsStreamFactory;
 use crate::node::{
-    Node, NodeController, NodeDrainingCause, NodeState, NodeStateInfo, NodeStateObserver,
-    NodeStats, NodeStatsInfo, NodeStatsObserver,
+    HostnameGenerator, Node, NodeController, NodeDrainingCause, NodeState, NodeStateInfo,
+    NodeStateObserver, NodeStats, NodeStatsInfo, NodeStatsObserver,
 };
 use crate::node_groups::{Config, NodeGroup};
 use act_zero::runtimes::tokio::{spawn_actor, Timer};
@@ -16,7 +16,8 @@ use act_zero::{send, upcast, Actor, ActorResult, Addr, Produces, WeakAddr};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::fmt;
-use std::time::Duration;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tracing::{info, trace};
 
 pub struct NodeGroupScaler {
@@ -24,10 +25,12 @@ pub struct NodeGroupScaler {
     timer: Timer,
     addr: WeakAddr<Self>,
     nodes: HashMap<String, ScalingNode>,
+    scale_lock: Option<ScaleLock>,
     node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
     cloud_provider: Addr<dyn CloudProvider>,
     dns_provider: Addr<dyn DnsProvider>,
     node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
+    hostname_generator: Arc<dyn HostnameGenerator>,
 }
 
 struct ScalingNode {
@@ -43,16 +46,19 @@ impl NodeGroupScaler {
         cloud_provider: Addr<dyn CloudProvider>,
         dns_provider: Addr<dyn DnsProvider>,
         node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
+        hostname_generator: Arc<dyn HostnameGenerator>,
     ) -> Self {
         NodeGroupScaler {
             node_group,
             timer: Default::default(),
             addr: Default::default(),
             nodes: Default::default(),
+            scale_lock: None,
             node_discovery_provider,
             cloud_provider,
             dns_provider,
             node_stats_stream_factory,
+            hostname_generator,
         }
     }
 }
@@ -235,36 +241,157 @@ impl NodeGroupScaler {
             group = %self.node_group.name
         )
     )]
-    async fn scale(&mut self) -> ActorResult<()> {
-        let bandwidth_usage = self.calculate_bandwidth_usage();
-        info!(bandwidth_usage);
+    async fn scale(&mut self) {
+        if self.node_group.config.is_none() {
+            return;
+        }
 
-        Produces::ok(())
+        if self.scale_lock.is_some() {
+            self.check_scale_lock();
+        } else {
+            let thresholds = self
+                .node_group
+                .config
+                .as_ref()
+                .map(|c| c.bandwidth_thresholds)
+                .unwrap();
+
+            match self.calculate_bandwidth_usage_percent() {
+                // scale up
+                x if x > thresholds.scale_up_percent => {
+                    info!(bandwidth_usage_percent = x, "Trigger ScaleUp");
+                    self.scale_lock = Some(self.scale_up().await);
+                }
+                // scale down
+                x if x < thresholds.scale_down_percent => {
+                    info!(bandwidth_usage_percent = x, "Trigger ScaleDown");
+                    self.scale_lock = Some(self.scale_down().await);
+                }
+                // do nothing
+                x => info!(
+                    bandwidth_usage_percent = x,
+                    "Current bandwidth usage doesn't exceed any thresholds, do nothing"
+                ),
+            }
+        }
     }
 
-    fn calculate_bandwidth_usage(&self) -> u8 {
+    #[tracing::instrument(name = "NodeGroupScaler::check_scale_lock", skip(self))]
+    fn check_scale_lock(&mut self) {
+        // todo scale lock expiry
+        let scale_lock = self.scale_lock.as_ref().unwrap();
+
+        info!(scale_lock = format!("{:?}", scale_lock).as_str());
+
+        let release_scale_lock = match &scale_lock.expectation {
+            ScaleLockExpectation::Gone => !self.nodes.contains_key(&scale_lock.hostname),
+            ScaleLockExpectation::State(expected_node_state) => {
+                match self.nodes.get(&scale_lock.hostname) {
+                    Some(node) if &node.state == expected_node_state => true,
+                    _ => false,
+                }
+            }
+        };
+
+        if release_scale_lock {
+            self.scale_lock = None;
+        }
+    }
+
+    async fn scale_up(&mut self) -> ScaleLock {
+        // try re-activating nodes from draining state
+        if let Some(scale_lock) = self.reactivate_draining_node().await {
+            return scale_lock;
+        }
+
+        // try activating ready nodes
+        if let Some(scale_lock) = self.activate_ready_node().await {
+            return scale_lock;
+        }
+
+        // provision new node
+        self.provision_new_node().await
+    }
+
+    async fn reactivate_draining_node(&mut self) -> Option<ScaleLock> {
+        let reactivatable = self
+            .nodes
+            .iter()
+            .find(|(k, v)| v.state.is_draining(NodeDrainingCause::Scaling));
+
+        if reactivatable.is_none() {
+            return None;
+        }
+
+        let (hostname, node) = reactivatable.unwrap();
+
+        info!(%hostname, "Found re-activatable draining node");
+        send!(node.controller.activate_node());
+
+        Some(ScaleLock::new(
+            hostname.clone(),
+            ScaleLockExpectation::State(NodeState::Active),
+        ))
+    }
+
+    async fn activate_ready_node(&mut self) -> Option<ScaleLock> {
+        let reactivatable = self.nodes.iter().find(|(k, v)| v.state.is_ready());
+
+        if reactivatable.is_none() {
+            return None;
+        }
+
+        let (hostname, node) = reactivatable.unwrap();
+
+        info!(%hostname, "Found activatable ready node");
+        send!(node.controller.activate_node());
+
+        Some(ScaleLock::new(
+            hostname.clone(),
+            ScaleLockExpectation::State(NodeState::Active),
+        ))
+    }
+
+    async fn provision_new_node(&mut self) -> ScaleLock {
+        let hostname = self
+            .hostname_generator
+            .generate_hostname(self.node_group.name.as_ref());
+
+        let node = self.create_scaling_node(&hostname);
+
+        self.nodes.insert(hostname.clone(), node);
+
+        ScaleLock::new(hostname, ScaleLockExpectation::State(NodeState::Ready))
+    }
+
+    async fn scale_down(&mut self) -> ScaleLock {
+        ScaleLock::new("foo".into(), ScaleLockExpectation::Gone)
+    }
+
+    fn calculate_bandwidth_usage_percent(&self) -> u8 {
         #[derive(Default, Debug)]
         struct ValueAcc {
             count: u64,
             bandwidth: u64,
         }
 
-        let result = self
-            .nodes
-            .values()
-            .filter(|n| n.state.is_active())
-            .filter_map(|n| n.last_stats.as_ref())
-            .fold(ValueAcc::default(), |mut acc, ns| {
+        let result = self.nodes.values().filter(|n| n.state.is_active()).fold(
+            ValueAcc::default(),
+            |mut acc, n| {
                 acc.count += 1;
-                acc.bandwidth += ns.tx_bps;
+                acc.bandwidth += n.last_stats.as_ref().map_or(0, |ns| ns.tx_bps);
 
                 acc
-            });
+            },
+        );
 
         let node_group_config = self.node_group.config.as_ref().unwrap();
         let max_capacity = result.count * node_group_config.node_bandwidth_capacity.tx_bps;
 
-        ((result.bandwidth as f64 / max_capacity as f64) * 100 as f64) as u8
+        match max_capacity {
+            0 => 0,
+            max_capacity => ((result.bandwidth as f64 / max_capacity as f64) * 100 as f64) as u8,
+        }
     }
 
     #[tracing::instrument(
@@ -321,4 +448,27 @@ impl NodeGroupScaler {
             controller: spawn_actor(node_controller),
         }
     }
+}
+
+#[derive(Debug)]
+struct ScaleLock {
+    expectation: ScaleLockExpectation,
+    hostname: String,
+    created_at: Instant,
+}
+
+impl ScaleLock {
+    fn new(hostname: String, expectation: ScaleLockExpectation) -> Self {
+        Self {
+            hostname,
+            expectation,
+            created_at: Instant::now(),
+        }
+    }
+}
+
+#[derive(Debug)]
+enum ScaleLockExpectation {
+    State(NodeState),
+    Gone,
 }

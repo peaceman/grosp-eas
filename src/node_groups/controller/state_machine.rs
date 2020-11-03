@@ -3,11 +3,13 @@ use crate::dns_provider::DnsProvider;
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryObserver, NodeDiscoveryProvider};
 use crate::node::exploration::NodeExplorationObserver;
 use crate::node::stats::NodeStatsStreamFactory;
+use crate::node::HostnameGenerator;
 use crate::node_groups::scaler::NodeGroupScaler;
 use crate::node_groups::NodeGroup;
 use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::{send, Addr, AddrLike};
 use async_trait::async_trait;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::info;
 
@@ -38,6 +40,7 @@ pub struct Shared {
     cloud_provider: Addr<dyn CloudProvider>,
     dns_provider: Addr<dyn DnsProvider>,
     node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
+    hostname_generator: Arc<dyn HostnameGenerator>,
     discovery_timeout: Duration,
 }
 
@@ -60,6 +63,7 @@ impl Handler for Data<Initializing> {
                     self.shared.cloud_provider.clone(),
                     self.shared.dns_provider.clone(),
                     self.shared.node_stats_stream_factory.clone(),
+                    Arc::clone(&self.shared.hostname_generator),
                 ));
 
                 NodeGroupMachine::Running(Data {
@@ -199,6 +203,7 @@ impl NodeGroupMachine {
         cloud_provider: Addr<dyn CloudProvider>,
         dns_provider: Addr<dyn DnsProvider>,
         node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
+        hostname_generator: Arc<dyn HostnameGenerator>,
         discovery_timeout: Duration,
     ) -> Self {
         Self::Initializing(Data {
@@ -208,6 +213,7 @@ impl NodeGroupMachine {
                 cloud_provider,
                 dns_provider,
                 node_stats_stream_factory,
+                hostname_generator,
                 discovery_timeout,
             },
             state: Initializing,

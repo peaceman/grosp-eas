@@ -133,6 +133,7 @@ dependencies = [
  "log",
  "opentelemetry",
  "opentelemetry-jaeger",
+ "rand",
  "serde",
  "serde_yaml",
  "strum",

@@ -5,6 +5,7 @@ use crate::dns_provider::DnsProvider;
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryObserver, NodeDiscoveryProvider};
 use crate::node::exploration::NodeExplorationObserver;
 use crate::node::stats::NodeStatsStreamFactory;
+use crate::node::HostnameGenerator;
 use crate::node_groups::controller::state_machine::{Event, NodeGroupMachine};
 use crate::node_groups::discovery::NodeGroupDiscoveryObserver;
 use crate::node_groups::scaler::NodeGroupScaler;
@@ -15,6 +16,7 @@ use act_zero::{send, Actor, ActorResult, Addr, Produces, WeakAddr};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::fmt;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::info;
 
@@ -34,6 +36,7 @@ pub struct NodeGroupsController {
     cloud_provider: Addr<dyn CloudProvider>,
     dns_provider: Addr<dyn DnsProvider>,
     node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
+    hostname_generator: Arc<dyn HostnameGenerator>,
 }
 
 impl NodeGroupsController {
@@ -42,6 +45,7 @@ impl NodeGroupsController {
         cloud_provider: Addr<dyn CloudProvider>,
         dns_provider: Addr<dyn DnsProvider>,
         node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
+        hostname_generator: Arc<dyn HostnameGenerator>,
     ) -> Self {
         NodeGroupsController {
             node_groups: HashMap::new(),
@@ -52,6 +56,7 @@ impl NodeGroupsController {
             cloud_provider,
             dns_provider,
             node_stats_stream_factory,
+            hostname_generator,
         }
     }
 }
@@ -127,6 +132,7 @@ impl NodeGroupDiscoveryObserver for NodeGroupsController {
                                 self.cloud_provider.clone(),
                                 self.dns_provider.clone(),
                                 self.node_stats_stream_factory.clone(),
+                                Arc::clone(&self.hostname_generator),
                                 self.node_group_max_retain_time.clone(),
                             ),
                             Some(state_machine::Event::Initialize),
@@ -244,6 +250,7 @@ impl NodeGroupsController {
             self.cloud_provider.clone(),
             self.dns_provider.clone(),
             self.node_stats_stream_factory.clone(),
+            Arc::clone(&self.hostname_generator),
             self.node_group_max_retain_time.clone(),
         );
 
