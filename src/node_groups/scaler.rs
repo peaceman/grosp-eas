@@ -14,6 +14,7 @@ use act_zero::runtimes::tokio::{spawn_actor, Timer};
 use act_zero::timer::Tick;
 use act_zero::{send, upcast, Actor, ActorResult, Addr, Produces, WeakAddr};
 use async_trait::async_trait;
+use std::cmp::{max, min};
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
@@ -265,7 +266,7 @@ impl NodeGroupScaler {
                 // scale down
                 x if x < thresholds.scale_down_percent => {
                     info!(bandwidth_usage_percent = x, "Trigger ScaleDown");
-                    self.scale_lock = Some(self.scale_down().await);
+                    self.scale_lock = self.scale_down().await;
                 }
                 // do nothing
                 x => info!(
@@ -310,6 +311,7 @@ impl NodeGroupScaler {
         }
 
         // provision new node
+        // todo check max nodes
         self.provision_new_node().await
     }
 
@@ -364,8 +366,30 @@ impl NodeGroupScaler {
         ScaleLock::new(hostname, ScaleLockExpectation::State(NodeState::Ready))
     }
 
-    async fn scale_down(&mut self) -> ScaleLock {
-        ScaleLock::new("foo".into(), ScaleLockExpectation::Gone)
+    async fn scale_down(&mut self) -> Option<ScaleLock> {
+        let min_nodes = self.node_group.config.as_ref().unwrap().min_nodes;
+        let min_nodes = min_nodes.map_or(1, |v| max(v, 1));
+
+        let mut active_nodes_info = self
+            .nodes
+            .iter()
+            .filter(|(k, v)| v.state.is_active())
+            .collect::<Vec<(&String, &ScalingNode)>>();
+
+        if min_nodes >= active_nodes_info.len() as u64 {
+            info!(
+                min_nodes,
+                current_active_nodes = active_nodes_info.len(),
+                "Cancel scale down"
+            );
+            None
+        } else {
+            let (hostname, node) = active_nodes_info.pop().unwrap();
+            info!(%hostname, "De-provision node");
+            send!(node.controller.deprovision_node(NodeDrainingCause::Scaling));
+
+            Some(ScaleLock::new(hostname.into(), ScaleLockExpectation::Gone))
+        }
     }
 
     fn calculate_bandwidth_usage_percent(&self) -> u8 {
