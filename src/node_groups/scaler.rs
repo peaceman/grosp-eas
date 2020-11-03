@@ -236,7 +236,35 @@ impl NodeGroupScaler {
         )
     )]
     async fn scale(&mut self) -> ActorResult<()> {
+        let bandwidth_usage = self.calculate_bandwidth_usage();
+        info!(bandwidth_usage);
+
         Produces::ok(())
+    }
+
+    fn calculate_bandwidth_usage(&self) -> u8 {
+        #[derive(Default, Debug)]
+        struct ValueAcc {
+            count: u64,
+            bandwidth: u64,
+        }
+
+        let result = self
+            .nodes
+            .values()
+            .filter(|n| n.state.is_active())
+            .filter_map(|n| n.last_stats.as_ref())
+            .fold(ValueAcc::default(), |mut acc, ns| {
+                acc.count += 1;
+                acc.bandwidth += ns.tx_bps;
+
+                acc
+            });
+
+        let node_group_config = self.node_group.config.as_ref().unwrap();
+        let max_capacity = result.count * node_group_config.node_bandwidth_capacity.tx_bps;
+
+        ((result.bandwidth as f64 / max_capacity as f64) * 100 as f64) as u8
     }
 
     #[tracing::instrument(

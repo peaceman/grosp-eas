@@ -55,6 +55,15 @@ pub enum NodeState {
     Deprovisioned,
 }
 
+impl NodeState {
+    pub fn is_active(&self) -> bool {
+        match self {
+            NodeState::Active => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct NodeStateInfo {
     pub hostname: String,
