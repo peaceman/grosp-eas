@@ -2,7 +2,7 @@ use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::{call, upcast, Actor, ActorResult, Addr, Produces};
 use async_trait::async_trait;
 use chrono::Utc;
-use edge_auto_scaler::cloud_provider::{CloudNodeInfo, CloudProvider};
+use edge_auto_scaler::cloud_provider::{CloudNodeInfo, CloudProvider, FileCloudProvider};
 use edge_auto_scaler::dns_provider::DnsProvider;
 use edge_auto_scaler::node::discovery::{
     FileNodeDiscovery, NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState,
@@ -72,7 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let stream_factory = Box::new(FileNodeStatsStreamFactory);
     let node_discovery_provider = spawn_actor(MockNodeDiscovery);
-    let cloud_provider = spawn_actor(MockCloudProvider);
+    let cloud_provider = spawn_actor(FileCloudProvider::new("test_files/node_exploration"));
     let dns_provider = spawn_actor(MockDnsProvider);
 
     let node_groups_controller = spawn_actor(NodeGroupsController::new(
@@ -80,7 +80,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         upcast!(cloud_provider),
         upcast!(dns_provider),
         stream_factory.clone(),
-        Arc::new(vec!["beta.gt.n2305.link", "gamma.gt.n2305.link"]),
+        Arc::new(vec![
+            "beta.gt.n2305.link",
+            "gamma.gt.n2305.link",
+            "delta.gt.n2305.link",
+            "epsilon.gt.n2305.link",
+            "psi.gt.n2305.link",
+        ]),
     ));
 
     let _node_group_discovery = spawn_actor(FileNodeGroupDiscovery::new(

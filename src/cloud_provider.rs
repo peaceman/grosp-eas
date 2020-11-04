@@ -1,10 +1,14 @@
+mod file;
+
 use act_zero::{Actor, ActorResult};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
-#[derive(Debug, Clone, Deserialize)]
+pub use file::FileCloudProvider;
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CloudNodeInfo {
     pub identifier: String,
     pub hostname: String,
