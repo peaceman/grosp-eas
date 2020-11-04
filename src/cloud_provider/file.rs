@@ -1,4 +1,5 @@
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
+use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryState};
 use act_zero::{Actor, ActorResult, Addr, Produces, WeakAddr};
 use anyhow::Context;
 use async_trait::async_trait;
@@ -10,14 +11,19 @@ use tracing::error;
 use tracing::info;
 
 pub struct FileCloudProvider {
-    directory: PathBuf,
+    exploration_directory: PathBuf,
+    discovery_directory: PathBuf,
     addr: WeakAddr<Self>,
 }
 
 impl FileCloudProvider {
-    pub fn new(directory: impl AsRef<Path>) -> Self {
+    pub fn new(
+        exploration_directory: impl AsRef<Path>,
+        discovery_directory: impl AsRef<Path>,
+    ) -> Self {
         Self {
-            directory: directory.as_ref().into(),
+            exploration_directory: exploration_directory.as_ref().into(),
+            discovery_directory: discovery_directory.as_ref().into(),
             addr: Default::default(),
         }
     }
@@ -29,7 +35,8 @@ impl Actor for FileCloudProvider {
         name = "FileCloudProvider::started",
         skip(self, addr),
         fields(
-            directory = %self.directory.display(),
+            exploration_directory = %self.exploration_directory.display(),
+            discovery_directory = %self.discovery_directory.display(),
         )
     )]
     async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
@@ -48,7 +55,7 @@ impl Actor for FileCloudProvider {
 impl CloudProvider for FileCloudProvider {
     #[tracing::instrument(name = "FileCloudProvider::get_node_info", skip(self))]
     async fn get_node_info(&mut self, hostname: String) -> ActorResult<Option<CloudNodeInfo>> {
-        let path = path_append(self.directory.join(hostname), ".yml");
+        let path = path_append(self.exploration_directory.join(hostname), ".yml");
         let node_info: anyhow::Result<CloudNodeInfo> = File::open(&path)
             .with_context(|| format!("Failed to open {}", &path.display()))
             .map(BufReader::new)
@@ -71,15 +78,31 @@ impl CloudProvider for FileCloudProvider {
             ip_addresses: vec!["1.2.3.4".parse().unwrap()],
         };
 
-        let path = path_append(self.directory.join(hostname), ".yml");
-        let des_result = File::create(&path)
-            .with_context(|| format!("Failed to create {}", &path.display()))
+        let discovery_data = NodeDiscoveryData {
+            hostname: hostname.clone(),
+            group: "topkek".to_string(),
+            state: NodeDiscoveryState::Ready,
+        };
+
+        let exploration_path = path_append(self.exploration_directory.join(&hostname), ".yml");
+        let discovery_path = path_append(self.discovery_directory.join(&hostname), ".yml");
+
+        let result = File::create(&exploration_path)
+            .with_context(|| format!("Failed to create {}", &exploration_path.display()))
             .map(BufWriter::new)
             .and_then(|writer| {
                 serde_yaml::to_writer(writer, &node_info).map_err(anyhow::Error::new)
+            })
+            .and_then(|_| {
+                File::create(&discovery_path)
+                    .with_context(|| format!("Failed to create {}", &discovery_path.display()))
+            })
+            .map(BufWriter::new)
+            .and_then(|writer| {
+                serde_yaml::to_writer(writer, &discovery_data).map_err(anyhow::Error::new)
             });
 
-        match des_result {
+        match result {
             Ok(_) => Produces::ok(node_info),
             Err(e) => {
                 error!("{:?}", e);
@@ -90,7 +113,17 @@ impl CloudProvider for FileCloudProvider {
 
     // #[tracing::instrument(name = "FileCloudProvider::delete_node", skip(self))]
     async fn delete_node(&mut self, node_info: CloudNodeInfo) -> ActorResult<()> {
-        match std::fs::remove_file(path_append(self.directory.join(node_info.hostname), ".yml")) {
+        let delete_exploration_result = std::fs::remove_file(path_append(
+            self.exploration_directory.join(&node_info.hostname),
+            ".yml",
+        ));
+
+        let delete_discovery_result = std::fs::remove_file(path_append(
+            self.discovery_directory.join(&node_info.hostname),
+            ".yml",
+        ));
+
+        match delete_exploration_result.and(delete_discovery_result) {
             Ok(_) => Produces::ok(()),
             Err(e) => Err(Box::new(e)),
         }

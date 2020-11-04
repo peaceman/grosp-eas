@@ -3,7 +3,7 @@ mod file;
 use crate::node::NodeDrainingCause;
 use act_zero::{Actor, ActorResult};
 use async_trait::async_trait;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 pub use file::FileNodeDiscovery;
 
@@ -21,14 +21,14 @@ pub trait NodeDiscoveryObserver: Actor {
     async fn observe_node_discovery(&mut self, data: NodeDiscoveryData);
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct NodeDiscoveryData {
     pub hostname: String,
     pub group: String,
     pub state: NodeDiscoveryState,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum NodeDiscoveryState {
     Ready,
     Active,

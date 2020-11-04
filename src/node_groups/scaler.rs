@@ -360,6 +360,7 @@ impl NodeGroupScaler {
             .generate_hostname(self.node_group.name.as_ref());
 
         let node = self.create_scaling_node(&hostname);
+        send!(node.controller.provision_node());
 
         self.nodes.insert(hostname.clone(), node);
 

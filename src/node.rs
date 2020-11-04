@@ -1,6 +1,6 @@
 use act_zero::{Actor, ActorResult, Produces};
 use async_trait::async_trait;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 mod controller;
@@ -41,7 +41,7 @@ pub trait NodeStatsObserver: Actor {
     async fn observe_node_stats(&mut self, stats_info: NodeStatsInfo) {}
 }
 
-#[derive(Debug, Copy, Clone, Deserialize, PartialEq)]
+#[derive(Debug, Copy, Clone, Deserialize, PartialEq, Serialize)]
 pub enum NodeDrainingCause {
     Scaling,
     RollingUpdate,

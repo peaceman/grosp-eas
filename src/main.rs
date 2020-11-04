@@ -72,7 +72,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let stream_factory = Box::new(FileNodeStatsStreamFactory);
     let node_discovery_provider = spawn_actor(MockNodeDiscovery);
-    let cloud_provider = spawn_actor(FileCloudProvider::new("test_files/node_exploration"));
+    let cloud_provider = spawn_actor(FileCloudProvider::new(
+        "test_files/node_exploration",
+        "test_files/node_discovery",
+    ));
     let dns_provider = spawn_actor(MockDnsProvider);
 
     let node_groups_controller = spawn_actor(NodeGroupsController::new(
