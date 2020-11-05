@@ -19,6 +19,8 @@ pub struct Config {
     bandwidth_thresholds: BandwidthThresholds,
     min_active_nodes: Option<u32>,
     max_nodes: Option<u32>,
+    min_spare_nodes: Option<u32>,
+    max_spare_nodes: Option<u32>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

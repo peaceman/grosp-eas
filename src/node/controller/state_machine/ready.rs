@@ -32,6 +32,14 @@ impl Handler for Data<Ready> {
                     },
                 })
             }
+            Some(NodeMachineEvent::DeprovisionNode { .. }) => {
+                info!("De-provision node");
+
+                NodeMachine::Deprovisioning(Data {
+                    shared: self.shared,
+                    state: Deprovisioning::new(Some(self.state.node_info)),
+                })
+            }
             _ if self.reached_discovery_timeout() => {
                 info!("Reached node discovery timeout");
 
