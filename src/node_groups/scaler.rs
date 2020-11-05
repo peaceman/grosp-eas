@@ -400,18 +400,23 @@ impl NodeGroupScaler {
             bandwidth: u64,
         }
 
+        let node_group_config = self.node_group.config.as_ref().unwrap();
+        let tx_bps_node_capacity = node_group_config.node_bandwidth_capacity.tx_bps;
+
         let result = self.nodes.values().filter(|n| n.state.is_active()).fold(
             ValueAcc::default(),
             |mut acc, n| {
                 acc.count += 1;
-                acc.bandwidth += n.last_stats.as_ref().map_or(0, |ns| ns.tx_bps);
+                acc.bandwidth += n
+                    .last_stats
+                    .as_ref()
+                    .map_or(tx_bps_node_capacity / 2, |ns| ns.tx_bps);
 
                 acc
             },
         );
 
-        let node_group_config = self.node_group.config.as_ref().unwrap();
-        let max_capacity = result.count * node_group_config.node_bandwidth_capacity.tx_bps;
+        let max_capacity = result.count * tx_bps_node_capacity;
 
         match max_capacity {
             0 => 0,
