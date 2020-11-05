@@ -17,6 +17,7 @@ use crate::node::stats::NodeStatsStreamFactory;
 use crate::node::{
     Node, NodeDrainingCause, NodeState, NodeStateInfo, NodeStateObserver, NodeStatsObserver,
 };
+use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::{call, send, Addr, WeakAddr};
 use async_trait::async_trait;
 use std::convert::AsRef;
@@ -117,6 +118,7 @@ pub struct Ready {
     node_info: CloudNodeInfo,
     entered_state_at: Instant,
     last_discovered_at: Option<Instant>,
+    stats_streamer: Option<Addr<StatsStreamer>>,
 }
 
 impl Ready {
@@ -125,6 +127,7 @@ impl Ready {
             node_info,
             entered_state_at: Instant::now(),
             last_discovered_at: None,
+            stats_streamer: None,
         }
     }
 }
@@ -139,23 +142,23 @@ pub struct Active {
 }
 
 impl Active {
-    fn new(node_info: CloudNodeInfo) -> Self {
+    fn new(node_info: CloudNodeInfo, stats_streamer: Option<Addr<StatsStreamer>>) -> Self {
         Self {
             node_info,
             marked_as_active: false,
             entered_state_at: Instant::now(),
             last_discovered_at: None,
-            stats_streamer: None,
+            stats_streamer,
         }
     }
 
-    fn new_marked(node_info: CloudNodeInfo) -> Self {
+    fn new_marked(node_info: CloudNodeInfo, stats_streamer: Option<Addr<StatsStreamer>>) -> Self {
         Self {
             node_info,
             marked_as_active: true,
             entered_state_at: Instant::now(),
             last_discovered_at: None,
-            stats_streamer: None,
+            stats_streamer,
         }
     }
 }
@@ -166,24 +169,35 @@ pub struct Draining {
     cause: NodeDrainingCause,
     marked_as_draining: bool,
     entered_state_at: Instant,
+    stats_streamer: Option<Addr<StatsStreamer>>,
 }
 
 impl Draining {
-    fn new(node_info: CloudNodeInfo, cause: NodeDrainingCause) -> Self {
+    fn new(
+        node_info: CloudNodeInfo,
+        cause: NodeDrainingCause,
+        stats_streamer: Option<Addr<StatsStreamer>>,
+    ) -> Self {
         Self {
             node_info,
             cause,
             marked_as_draining: false,
             entered_state_at: Instant::now(),
+            stats_streamer,
         }
     }
 
-    fn new_marked(node_info: CloudNodeInfo, cause: NodeDrainingCause) -> Self {
+    fn new_marked(
+        node_info: CloudNodeInfo,
+        cause: NodeDrainingCause,
+        stats_streamer: Option<Addr<StatsStreamer>>,
+    ) -> Self {
         Self {
             node_info,
             cause,
             marked_as_draining: true,
             entered_state_at: Instant::now(),
+            stats_streamer,
         }
     }
 }
@@ -351,4 +365,14 @@ impl NodeMachineProgressHandler {
         node_machine.publish_node_state(&self.node_state_observer);
         node_machine
     }
+}
+
+fn start_stats_streamer(shared: &Shared) -> Addr<StatsStreamer> {
+    info!("Start stats streamer actor");
+
+    spawn_actor(StatsStreamer::new(
+        shared.node.hostname.clone(),
+        shared.node_stats_observer.clone(),
+        shared.node_stats_stream_factory.clone(),
+    ))
 }

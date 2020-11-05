@@ -17,7 +17,7 @@ impl Handler for Data<Active> {
 
                 NodeMachine::Draining(Data {
                     shared: self.shared,
-                    state: Draining::new(self.state.node_info, cause),
+                    state: Draining::new(self.state.node_info, cause, self.state.stats_streamer),
                 })
             }
             Some(NodeMachineEvent::DiscoveredNode {
@@ -83,11 +83,7 @@ impl Data<Active> {
     fn start_stats_streamer(mut self) -> NodeMachine {
         info!("Start stats streamer actor");
 
-        self.state.stats_streamer = Some(spawn_actor(StatsStreamer::new(
-            self.shared.node.hostname.clone(),
-            self.shared.node_stats_observer.clone(),
-            self.shared.node_stats_stream_factory.clone(),
-        )));
+        self.state.stats_streamer = Some(start_stats_streamer(&self.shared));
 
         NodeMachine::Active(self)
     }

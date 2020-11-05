@@ -22,9 +22,10 @@ impl Handler for Data<Draining> {
 
                 NodeMachine::Active(Data {
                     shared: self.shared,
-                    state: Active::new(self.state.node_info),
+                    state: Active::new(self.state.node_info, self.state.stats_streamer),
                 })
             }
+            _ if self.state.stats_streamer.is_none() => self.start_stats_streamer(),
             _ if !self.state.marked_as_draining => self.mark_as_draining().await,
             _ => NodeMachine::Draining(self),
         }
@@ -51,6 +52,14 @@ impl Data<Draining> {
         } else {
             self.state.marked_as_draining = true;
         }
+
+        NodeMachine::Draining(self)
+    }
+
+    fn start_stats_streamer(mut self) -> NodeMachine {
+        info!("Start stats streamer actor");
+
+        self.state.stats_streamer = Some(start_stats_streamer(&self.shared));
 
         NodeMachine::Draining(self)
     }

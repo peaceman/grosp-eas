@@ -12,7 +12,7 @@ impl Handler for Data<Ready> {
 
                 NodeMachine::Active(Data {
                     shared: self.shared,
-                    state: Active::new(self.state.node_info),
+                    state: Active::new(self.state.node_info, self.state.stats_streamer),
                 })
             }
             Some(NodeMachineEvent::DiscoveredNode {
@@ -40,6 +40,7 @@ impl Handler for Data<Ready> {
                     state: Deprovisioning::new(Some(self.state.node_info)),
                 })
             }
+            _ if self.state.stats_streamer.is_none() => self.start_stats_streamer(),
             _ => NodeMachine::Ready(self),
         }
     }
@@ -53,5 +54,13 @@ impl Data<Ready> {
         };
 
         Instant::now().duration_since(cmp_instant) >= self.shared.config.discovery_timeout
+    }
+
+    fn start_stats_streamer(mut self) -> NodeMachine {
+        info!("Start stats streamer actor");
+
+        self.state.stats_streamer = Some(start_stats_streamer(&self.shared));
+
+        NodeMachine::Ready(self)
     }
 }

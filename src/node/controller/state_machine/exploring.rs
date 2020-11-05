@@ -39,11 +39,11 @@ impl Data<Exploring> {
                 }),
                 NodeDiscoveryState::Active => NodeMachine::Active(Data {
                     shared: self.shared,
-                    state: Active::new_marked(node_info),
+                    state: Active::new_marked(node_info, None),
                 }),
                 NodeDiscoveryState::Draining(cause) => NodeMachine::Draining(Data {
                     shared: self.shared,
-                    state: Draining::new(node_info, cause),
+                    state: Draining::new(node_info, cause, None),
                 }),
             }
         } else {
