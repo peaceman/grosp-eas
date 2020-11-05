@@ -253,11 +253,11 @@ impl NodeGroupScaler {
         }
 
         self.scale_locks = None
-            .or_else(|| self.ensure_active_nodes())
+            .or_else(|| self.scale_min_active_nodes())
             .or_else(|| self.scale_bandwidth_nodes());
     }
 
-    fn ensure_active_nodes(&mut self) -> Option<Vec<ScaleLock>> {
+    fn scale_min_active_nodes(&mut self) -> Option<Vec<ScaleLock>> {
         // check min active nodes
         let min_active_nodes = get_min_active_nodes(&self.node_group);
         let cur_active_nodes = self.get_active_node_count();
@@ -364,7 +364,6 @@ impl NodeGroupScaler {
             // try activating ready nodes
             .or_else(|| self.try_activate_ready_node())
             // provision new node
-            // todo check max nodes
             .or_else(|| self.try_provision_new_node())
     }
 
@@ -408,12 +407,29 @@ impl NodeGroupScaler {
     }
 
     fn try_provision_new_node(&mut self) -> Option<Vec<ScaleLock>> {
-        let hostname = self.provision_new_node(NodeDiscoveryState::Ready);
+        let current_nodes = self.nodes.len() as u32;
+        let reached_node_limit = self
+            .node_group
+            .config
+            .as_ref()
+            .unwrap()
+            .max_nodes
+            .map(|max_nodes| current_nodes >= max_nodes);
 
-        Some(vec![ScaleLock::new(
-            hostname,
-            ScaleLockExpectation::State(NodeState::Ready),
-        )])
+        match reached_node_limit {
+            Some(true) => {
+                info!(%current_nodes, "Reached node limit, cancel node provisioning");
+                None
+            }
+            Some(false) | None => {
+                let hostname = self.provision_new_node(NodeDiscoveryState::Ready);
+
+                Some(vec![ScaleLock::new(
+                    hostname,
+                    ScaleLockExpectation::State(NodeState::Ready),
+                )])
+            }
+        }
     }
 
     fn provision_new_node(&mut self, target_state: NodeDiscoveryState) -> String {
@@ -430,8 +446,7 @@ impl NodeGroupScaler {
     }
 
     fn scale_down(&mut self) -> Option<Vec<ScaleLock>> {
-        let min_nodes = self.node_group.config.as_ref().unwrap().min_nodes;
-        let min_nodes = min_nodes.map_or(1, |v| max(v, 1));
+        let min_active_nodes = get_min_active_nodes(&self.node_group);
 
         let mut active_nodes_info = self
             .nodes
@@ -439,9 +454,9 @@ impl NodeGroupScaler {
             .filter(|(k, v)| v.state.is_active())
             .collect::<Vec<(&String, &ScalingNode)>>();
 
-        if min_nodes >= active_nodes_info.len() as u32 {
+        if min_active_nodes >= active_nodes_info.len() as u32 {
             info!(
-                min_nodes,
+                min_active_nodes,
                 current_active_nodes = active_nodes_info.len(),
                 "Cancel scale down"
             );
@@ -569,5 +584,10 @@ enum ScaleLockExpectation {
 }
 
 fn get_min_active_nodes(node_group: &NodeGroup) -> u32 {
-    node_group.config.as_ref().unwrap().min_nodes.unwrap_or(1)
+    node_group
+        .config
+        .as_ref()
+        .unwrap()
+        .min_active_nodes
+        .unwrap_or(1)
 }

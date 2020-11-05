@@ -17,7 +17,7 @@ pub struct NodeGroup {
 pub struct Config {
     node_bandwidth_capacity: BandwidthCapacity,
     bandwidth_thresholds: BandwidthThresholds,
-    min_nodes: Option<u32>,
+    min_active_nodes: Option<u32>,
     max_nodes: Option<u32>,
 }
 
