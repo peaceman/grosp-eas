@@ -81,8 +81,6 @@ impl Data<Active> {
     }
 
     fn start_stats_streamer(mut self) -> NodeMachine {
-        info!("Start stats streamer actor");
-
         self.state.stats_streamer = Some(start_stats_streamer(&self.shared));
 
         NodeMachine::Active(self)

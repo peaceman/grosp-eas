@@ -5,7 +5,7 @@ mod stats_streamer;
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
 use crate::dns_provider::DnsProvider;
 use crate::node::controller::state_machine::{Data, Draining, NodeMachine, NodeMachineEvent};
-use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryProvider};
+use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState};
 use crate::node::{
     Node, NodeDrainingCause, NodeState, NodeStateInfo, NodeStateObserver, NodeStats,
     NodeStatsObserver,
@@ -105,9 +105,9 @@ impl NodeController {
                 node_stats_observer,
                 node_stats_stream_factory,
                 Config {
-                    draining_time: Duration::from_secs(2 * 60),
-                    provisioning_timeout: Duration::from_secs(10 * 60),
-                    discovery_timeout: Duration::from_secs(10 * 60),
+                    draining_time: Duration::from_secs(1 * 60),
+                    provisioning_timeout: Duration::from_secs(2 * 60),
+                    discovery_timeout: Duration::from_secs(2 * 60),
                 },
             )),
         }
@@ -118,8 +118,8 @@ impl NodeController {
         skip(self),
         fields(hostname = %self.node.hostname, group = %self.node.group)
     )]
-    pub async fn provision_node(&mut self) {
-        self.process_node_machine(Some(NodeMachineEvent::ProvisionNode))
+    pub async fn provision_node(&mut self, target_state: NodeDiscoveryState) {
+        self.process_node_machine(Some(NodeMachineEvent::ProvisionNode { target_state }))
             .await;
     }
 

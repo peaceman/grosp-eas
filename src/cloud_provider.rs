@@ -6,6 +6,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
+use crate::node::discovery::NodeDiscoveryState;
+use crate::node::NodeState;
 pub use file::FileCloudProvider;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -20,6 +22,10 @@ pub struct CloudNodeInfo {
 #[async_trait]
 pub trait CloudProvider: Actor {
     async fn get_node_info(&mut self, hostname: String) -> ActorResult<Option<CloudNodeInfo>>;
-    async fn create_node(&mut self, hostname: String) -> ActorResult<CloudNodeInfo>;
+    async fn create_node(
+        &mut self,
+        hostname: String,
+        target_state: NodeDiscoveryState,
+    ) -> ActorResult<CloudNodeInfo>;
     async fn delete_node(&mut self, node_info: CloudNodeInfo) -> ActorResult<()>;
 }

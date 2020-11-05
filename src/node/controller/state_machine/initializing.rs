@@ -7,10 +7,12 @@ impl MachineState for Initializing {}
 impl Handler for Data<Initializing> {
     async fn handle(self, event: Option<NodeMachineEvent>) -> NodeMachine {
         match event {
-            Some(NodeMachineEvent::ProvisionNode) => NodeMachine::Provisioning(Data {
-                shared: self.shared,
-                state: Provisioning::new(),
-            }),
+            Some(NodeMachineEvent::ProvisionNode { target_state }) => {
+                NodeMachine::Provisioning(Data {
+                    shared: self.shared,
+                    state: Provisioning::new(target_state),
+                })
+            }
             Some(NodeMachineEvent::DiscoveredNode { discovery_data }) => {
                 NodeMachine::Exploring(Data {
                     shared: self.shared,

@@ -83,13 +83,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         upcast!(cloud_provider),
         upcast!(dns_provider),
         stream_factory.clone(),
-        Arc::new(vec![
-            "beta.gt.n2305.link",
-            "gamma.gt.n2305.link",
-            "delta.gt.n2305.link",
-            "epsilon.gt.n2305.link",
-            "psi.gt.n2305.link",
-        ]),
+        // Arc::new(vec![
+        //     "beta.gt.n2305.link",
+        //     "gamma.gt.n2305.link",
+        //     "delta.gt.n2305.link",
+        //     "epsilon.gt.n2305.link",
+        //     "psi.gt.n2305.link",
+        // ]),
+        Arc::new(('a'..='z').collect::<Vec<char>>()),
     ));
 
     let _node_group_discovery = spawn_actor(FileNodeGroupDiscovery::new(
@@ -215,7 +216,11 @@ impl CloudProvider for MockCloudProvider {
         Produces::ok(None)
     }
 
-    async fn create_node(&mut self, hostname: String) -> ActorResult<CloudNodeInfo> {
+    async fn create_node(
+        &mut self,
+        hostname: String,
+        target_state: NodeDiscoveryState,
+    ) -> ActorResult<CloudNodeInfo> {
         unimplemented!()
     }
 

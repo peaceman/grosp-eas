@@ -28,7 +28,7 @@ pub struct NodeDiscoveryData {
     pub state: NodeDiscoveryState,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub enum NodeDiscoveryState {
     Ready,
     Active,

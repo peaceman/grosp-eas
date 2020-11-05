@@ -48,7 +48,7 @@ pub enum NodeDrainingCause {
     Termination,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum NodeState {
     Unready,
     Ready,

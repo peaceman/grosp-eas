@@ -12,7 +12,7 @@ use super::Config;
 use super::StatsStreamer;
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
 use crate::dns_provider::DnsProvider;
-use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryProvider};
+use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState};
 use crate::node::stats::NodeStatsStreamFactory;
 use crate::node::{
     Node, NodeDrainingCause, NodeState, NodeStateInfo, NodeStateObserver, NodeStatsObserver,
@@ -42,7 +42,7 @@ pub enum NodeMachine {
 
 #[derive(Debug)]
 pub enum NodeMachineEvent {
-    ProvisionNode,
+    ProvisionNode { target_state: NodeDiscoveryState },
     DiscoveredNode { discovery_data: NodeDiscoveryData },
     ExploredNode { node_info: CloudNodeInfo },
     ActivateNode,
@@ -81,14 +81,16 @@ pub struct Provisioning {
     node_info: Option<CloudNodeInfo>,
     entered_state_at: Instant,
     created_dns_records: bool,
+    target_state: NodeDiscoveryState,
 }
 
 impl Provisioning {
-    fn new() -> Self {
+    fn new(target_state: NodeDiscoveryState) -> Self {
         Self {
             node_info: None,
             entered_state_at: Instant::now(),
             created_dns_records: false,
+            target_state,
         }
     }
 }

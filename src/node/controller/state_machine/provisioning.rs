@@ -23,10 +23,17 @@ impl Handler for Data<Provisioning> {
                 // info available
                 let node_info = self.state.node_info.unwrap();
 
-                match discovery_data.state {
-                    NodeDiscoveryState::Ready => NodeMachine::Ready(Data {
+                match (
+                    &discovery_data.state,
+                    &discovery_data.state == &self.state.target_state,
+                ) {
+                    (NodeDiscoveryState::Ready, true) => NodeMachine::Ready(Data {
                         shared: self.shared,
                         state: Ready::new(node_info),
+                    }),
+                    (NodeDiscoveryState::Active, true) => NodeMachine::Active(Data {
+                        shared: self.shared,
+                        state: Active::new(node_info, None),
                     }),
                     _ => NodeMachine::Deprovisioning(Data {
                         shared: self.shared,
@@ -58,10 +65,10 @@ impl Data<Provisioning> {
     async fn create_node(self) -> NodeMachine {
         info!("Create node via CloudProvider");
 
-        let create_node_result = call!(self
-            .shared
-            .cloud_provider
-            .create_node(self.shared.node.hostname.clone()))
+        let create_node_result = call!(self.shared.cloud_provider.create_node(
+            self.shared.node.hostname.clone(),
+            self.state.target_state.clone()
+        ))
         .await;
 
         if let Err(e) = create_node_result {

@@ -1,5 +1,6 @@
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryState};
+use crate::node::NodeState;
 use act_zero::{Actor, ActorResult, Addr, Produces, WeakAddr};
 use anyhow::Context;
 use async_trait::async_trait;
@@ -69,7 +70,11 @@ impl CloudProvider for FileCloudProvider {
     }
 
     #[tracing::instrument(name = "FileCloudProvider::create_node", skip(self))]
-    async fn create_node(&mut self, hostname: String) -> ActorResult<CloudNodeInfo> {
+    async fn create_node(
+        &mut self,
+        hostname: String,
+        target_state: NodeDiscoveryState,
+    ) -> ActorResult<CloudNodeInfo> {
         let node_info = CloudNodeInfo {
             identifier: format!("{}-identifier", hostname),
             hostname: hostname.clone(),
@@ -81,7 +86,7 @@ impl CloudProvider for FileCloudProvider {
         let discovery_data = NodeDiscoveryData {
             hostname: hostname.clone(),
             group: "topkek".to_string(),
-            state: NodeDiscoveryState::Ready,
+            state: target_state,
         };
 
         let exploration_path = path_append(self.exploration_directory.join(&hostname), ".yml");
@@ -123,10 +128,7 @@ impl CloudProvider for FileCloudProvider {
             ".yml",
         ));
 
-        match delete_exploration_result.and(delete_discovery_result) {
-            Ok(_) => Produces::ok(()),
-            Err(e) => Err(Box::new(e)),
-        }
+        Produces::ok(())
     }
 }
 
