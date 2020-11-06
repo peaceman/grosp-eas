@@ -16,22 +16,27 @@ impl Handler for Data<Ready> {
                 })
             }
             Some(NodeMachineEvent::DiscoveredNode {
-                discovery_data:
-                    NodeDiscoveryData {
-                        state: NodeDiscoveryState::Ready,
-                        ..
-                    },
-            }) => {
-                info!("Discovered ready node");
+                discovery_data: NodeDiscoveryData { state, .. },
+            }) => match state {
+                NodeDiscoveryState::Ready => {
+                    info!("Discovered ready node, updating last discovery timestamp");
+                    NodeMachine::Ready(Data {
+                        shared: self.shared,
+                        state: Ready {
+                            last_discovered_at: Some(Instant::now()),
+                            ..self.state
+                        },
+                    })
+                }
+                _ => {
+                    info!(
+                        state = format!("{:?}", state).as_str(),
+                        "Discovered ready node in unexpected state"
+                    );
 
-                NodeMachine::Ready(Data {
-                    shared: self.shared,
-                    state: Ready {
-                        last_discovered_at: Some(Instant::now()),
-                        ..self.state
-                    },
-                })
-            }
+                    NodeMachine::Ready(self)
+                }
+            },
             Some(NodeMachineEvent::DeprovisionNode { .. }) => {
                 info!("De-provision node");
 

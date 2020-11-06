@@ -21,22 +21,28 @@ impl Handler for Data<Active> {
                 })
             }
             Some(NodeMachineEvent::DiscoveredNode {
-                discovery_data:
-                    NodeDiscoveryData {
-                        state: NodeDiscoveryState::Active,
-                        ..
-                    },
-            }) => {
-                info!("Discovered active node");
+                discovery_data: NodeDiscoveryData { state, .. },
+            }) => match state {
+                NodeDiscoveryState::Active => {
+                    info!("Discovered active node, updating last discovery timestamp");
 
-                NodeMachine::Active(Data {
-                    shared: self.shared,
-                    state: Active {
-                        last_discovered_at: Some(Instant::now()),
-                        ..self.state
-                    },
-                })
-            }
+                    NodeMachine::Active(Data {
+                        shared: self.shared,
+                        state: Active {
+                            last_discovered_at: Some(Instant::now()),
+                            ..self.state
+                        },
+                    })
+                }
+                _ => {
+                    info!(
+                        state = format!("{:?}", state).as_str(),
+                        "Discovered active node in unexpected state"
+                    );
+
+                    NodeMachine::Active(self)
+                }
+            },
             _ if self.reached_discovery_timeout() => {
                 info!("Reached node discovery timeout");
 
