@@ -602,9 +602,15 @@ impl NodeGroupScaler {
         cause: NodeDrainingCause,
     ) -> ScaleLock {
         info!(%hostname, cause = format!("{:?}", cause).as_str(), "De-provision node");
-        send!(node.controller.deprovision_node(NodeDrainingCause::Scaling));
+        send!(node.controller.deprovision_node(cause));
 
-        ScaleLock::new(hostname.into(), ScaleLockExpectation::Gone)
+        ScaleLock::new(
+            hostname.into(),
+            match cause {
+                NodeDrainingCause::Scaling => ScaleLockExpectation::State(NodeState::Ready),
+                _ => ScaleLockExpectation::Gone,
+            },
+        )
     }
 
     fn calculate_bandwidth_usage_percent(&self) -> u8 {
