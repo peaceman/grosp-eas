@@ -15,11 +15,12 @@ use act_zero::timer::Tick;
 use act_zero::{send, upcast, Actor, ActorResult, Addr, Produces, WeakAddr};
 use async_trait::async_trait;
 use std::cmp::{max, min};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::{info, trace};
+use tracing_futures::Instrument;
 
 pub struct NodeGroupScaler {
     node_group: NodeGroup,
@@ -257,18 +258,23 @@ impl NodeGroupScaler {
 
         self.check_spare_scale_locks();
 
-        let active_scale_up_locks = self.scale_locks_spare.up.len();
-        let active_scale_down_locks = self.scale_locks_spare.down.len();
+        let mut ready_nodes = HashSet::new();
+        self.nodes.keys().for_each(|h| {
+            ready_nodes.remove(h);
+        });
 
-        let ready_nodes = self.nodes.values().filter(|n| n.state.is_ready()).count() as u32;
-        let projected_ready_nodes = ready_nodes + active_scale_up_locks as u32;
+        self.scale_locks_spare.up.keys().for_each(|h| {
+            ready_nodes.insert(h);
+        });
 
+        self.scale_locks_spare.down.keys().for_each(|h| {
+            ready_nodes.remove(h);
+        });
+
+        let projected_ready_nodes = ready_nodes.len() as u32;
         let node_change = self.determine_necessary_spare_node_change(projected_ready_nodes);
 
-        info!(
-            node_change,
-            ready_nodes, projected_ready_nodes, active_scale_up_locks, active_scale_down_locks
-        );
+        info!(projected_ready_nodes, node_change);
 
         if node_change.is_positive() {
             self.provision_spare_nodes(node_change as u32);
@@ -367,15 +373,22 @@ impl NodeGroupScaler {
             .nodes
             .iter()
             .filter(|(h, n)| n.state.is_ready())
+            .filter({
+                let locks = &self.scale_locks_spare;
+                move |(h, n)| !locks.up.contains_key(*h) && !locks.down.contains_key(*h)
+            })
             .take(amount as usize);
 
+        let mut locks = Vec::with_capacity(amount as usize);
         for (hostname, node) in ready_nodes {
             let scale_lock =
                 self.deprovision_node(hostname.as_str(), node, NodeDrainingCause::Termination);
 
-            self.scale_locks_spare
-                .down
-                .insert(hostname.into(), scale_lock);
+            locks.push((hostname.clone(), scale_lock));
+        }
+
+        for (hostname, lock) in locks.into_iter() {
+            self.scale_locks_spare.down.insert(hostname, lock);
         }
     }
 
@@ -417,7 +430,14 @@ impl NodeGroupScaler {
             let scale_locks = (0..missing_nodes)
                 .map(|_| self.provision_new_node(NodeDiscoveryState::Active))
                 .map(|hostname| {
-                    ScaleLock::new(hostname, ScaleLockExpectation::State(NodeState::Active))
+                    ScaleLock::new(
+                        hostname,
+                        ScaleLockExpectation::State(NodeState::Active),
+                        ScaleLockCooldowns::new(
+                            None,
+                            future_instant(10 * 60), // todo configuration
+                        ),
+                    )
                 })
                 .collect();
 
@@ -503,6 +523,7 @@ impl NodeGroupScaler {
         Some(vec![ScaleLock::new(
             hostname.clone(),
             ScaleLockExpectation::State(NodeState::Active),
+            ScaleLockCooldowns::new(Some(future_instant(15)), future_instant(30)),
         )])
     }
 
@@ -525,6 +546,7 @@ impl NodeGroupScaler {
         Some(vec![ScaleLock::new(
             hostname,
             ScaleLockExpectation::State(NodeState::Active),
+            ScaleLockCooldowns::new(Some(future_instant(15)), future_instant(30)),
         )])
     }
 
@@ -549,6 +571,7 @@ impl NodeGroupScaler {
                 Some(ScaleLock::new(
                     hostname,
                     ScaleLockExpectation::State(NodeState::Ready),
+                    ScaleLockCooldowns::new(Some(future_instant(15)), future_instant(30)),
                 ))
             }
         }
@@ -604,13 +627,18 @@ impl NodeGroupScaler {
         info!(%hostname, cause = format!("{:?}", cause).as_str(), "De-provision node");
         send!(node.controller.deprovision_node(cause));
 
-        ScaleLock::new(
-            hostname.into(),
-            match cause {
-                NodeDrainingCause::Scaling => ScaleLockExpectation::State(NodeState::Ready),
-                _ => ScaleLockExpectation::Gone,
-            },
-        )
+        match cause {
+            NodeDrainingCause::Scaling => ScaleLock::new(
+                hostname.into(),
+                ScaleLockExpectation::State(NodeState::Ready),
+                ScaleLockCooldowns::new(Some(future_instant(15)), future_instant(30)),
+            ),
+            _ => ScaleLock::new(
+                hostname.into(),
+                ScaleLockExpectation::Gone,
+                ScaleLockCooldowns::new(None, future_instant(10 * 60)), // todo configuration
+            ),
+        }
     }
 
     fn calculate_bandwidth_usage_percent(&self) -> u8 {
@@ -704,15 +732,19 @@ impl NodeGroupScaler {
 struct ScaleLock {
     expectation: ScaleLockExpectation,
     hostname: String,
-    created_at: Instant,
+    cooldowns: ScaleLockCooldowns,
 }
 
 impl ScaleLock {
-    fn new(hostname: String, expectation: ScaleLockExpectation) -> Self {
+    fn new(
+        hostname: String,
+        expectation: ScaleLockExpectation,
+        cooldowns: ScaleLockCooldowns,
+    ) -> Self {
         Self {
             hostname,
             expectation,
-            created_at: Instant::now(),
+            cooldowns,
         }
     }
 }
@@ -721,6 +753,26 @@ impl ScaleLock {
 enum ScaleLockExpectation {
     State(NodeState),
     Gone,
+}
+
+#[derive(Debug)]
+struct ScaleLockCooldowns {
+    min: Option<Instant>,
+    max: Instant,
+}
+
+impl ScaleLockCooldowns {
+    fn new(min: Option<Instant>, max: Instant) -> Self {
+        Self { min, max }
+    }
+
+    fn can_release(&self) -> bool {
+        self.min.map(|min| Instant::now() >= min).unwrap_or(true)
+    }
+
+    fn must_release(&self) -> bool {
+        Instant::now() >= self.max
+    }
 }
 
 fn get_min_active_nodes(node_group: &NodeGroup) -> u32 {
@@ -732,9 +784,20 @@ fn get_min_active_nodes(node_group: &NodeGroup) -> u32 {
         .unwrap_or(1)
 }
 
+#[tracing::instrument(
+    skip(nodes, scale_lock),
+    fields(hostname = scale_lock.hostname.as_str(), expectation = format!("{:?}", scale_lock.expectation).as_str(), cooldowns = format!("{:?}", scale_lock.cooldowns).as_str())
+)]
 fn is_releasable_scale_lock(nodes: &HashMap<String, ScalingNode>, scale_lock: &ScaleLock) -> bool {
-    // todo scale lock expiry
-    info!(scale_lock = format!("{:?}", scale_lock).as_str());
+    if !scale_lock.cooldowns.can_release() {
+        info!("Minimum cooldown period was not reached");
+        return false;
+    }
+
+    if scale_lock.cooldowns.must_release() {
+        info!("Maximum cooldown period was reached");
+        return true;
+    }
 
     let fulfilled_expectation = match &scale_lock.expectation {
         ScaleLockExpectation::Gone => !nodes.contains_key(&scale_lock.hostname),
@@ -753,4 +816,8 @@ fn is_releasable_scale_lock(nodes: &HashMap<String, ScalingNode>, scale_lock: &S
     }
 
     fulfilled_expectation
+}
+
+fn future_instant(secs: u64) -> Instant {
+    Instant::now() + Duration::from_secs(secs)
 }

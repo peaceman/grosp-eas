@@ -70,7 +70,7 @@ fn init_logging() -> Result<(), Box<dyn std::error::Error>> {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logging()?;
 
-    let stream_factory = Box::new(FileNodeStatsStreamFactory);
+    let stream_factory = Box::new(StreamFactory);
     let node_discovery_provider = spawn_actor(MockNodeDiscovery);
     let cloud_provider = spawn_actor(FileCloudProvider::new(
         "test_files/node_exploration",
@@ -90,7 +90,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         //     "epsilon.gt.n2305.link",
         //     "psi.gt.n2305.link",
         // ]),
-        Arc::new(('a'..='z').collect::<Vec<char>>()),
+        // Arc::new(('a'..='z').collect::<Vec<char>>()),
+        Arc::new("gt.n2305.link".to_owned()),
     ));
 
     let _node_group_discovery = spawn_actor(FileNodeGroupDiscovery::new(
@@ -165,7 +166,7 @@ impl Stream for FixedNodeStatsStream {
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Pin::new(&mut self.interval).poll_next(cx) {
             Poll::Ready(_) => Poll::Ready(Some(NodeStats {
-                tx_bps: 23,
+                tx_bps: 100,
                 rx_bps: 23,
             })),
             Poll::Pending => Poll::Pending,
