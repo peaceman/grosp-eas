@@ -292,11 +292,18 @@ impl NodeGroupScaler {
     }
 
     fn determine_necessary_spare_node_change(&self, ready_nodes: u32) -> i32 {
-        let (min_spare_nodes, max_spare_nodes) = {
+        let (min_spare_nodes, mut max_spare_nodes) = {
             let config = self.node_group.config.as_ref().unwrap();
 
             (config.min_spare_nodes, config.max_spare_nodes)
         };
+
+        // ensure max spare nodes is always equal or greater than min spare nodes
+        if let (Some(min), Some(max)) = (min_spare_nodes, max_spare_nodes) {
+            if min > max {
+                max_spare_nodes = Some(min);
+            }
+        }
 
         let node_change = max_spare_nodes
             .map(|max| {
