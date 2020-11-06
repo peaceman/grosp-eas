@@ -29,7 +29,7 @@ impl Handler for Data<Provisioning> {
                 ) {
                     (NodeDiscoveryState::Ready, true) => NodeMachine::Ready(Data {
                         shared: self.shared,
-                        state: Ready::new(node_info),
+                        state: Ready::new(node_info, None),
                     }),
                     (NodeDiscoveryState::Active, true) => NodeMachine::Active(Data {
                         shared: self.shared,

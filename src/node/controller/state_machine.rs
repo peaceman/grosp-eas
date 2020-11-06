@@ -124,12 +124,12 @@ pub struct Ready {
 }
 
 impl Ready {
-    fn new(node_info: CloudNodeInfo) -> Self {
+    fn new(node_info: CloudNodeInfo, stats_streamer: Option<Addr<StatsStreamer>>) -> Self {
         Self {
             node_info,
             entered_state_at: Instant::now(),
             last_discovered_at: None,
-            stats_streamer: None,
+            stats_streamer,
         }
     }
 }

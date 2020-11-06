@@ -361,7 +361,8 @@ impl NodeGroupScaler {
             .take(amount as usize);
 
         for (hostname, node) in ready_nodes {
-            let scale_lock = self.deprovision_node(hostname.as_str(), node);
+            let scale_lock =
+                self.deprovision_node(hostname.as_str(), node, NodeDrainingCause::Termination);
 
             self.scale_locks_spare
                 .down
@@ -577,15 +578,21 @@ impl NodeGroupScaler {
             None
         } else {
             let (hostname, node) = active_nodes_info.pop().unwrap();
-            info!(%hostname, "De-provision node");
-            send!(node.controller.deprovision_node(NodeDrainingCause::Scaling));
-
-            Some(vec![self.deprovision_node(hostname.as_str(), node)])
+            Some(vec![self.deprovision_node(
+                hostname.as_str(),
+                node,
+                NodeDrainingCause::Scaling,
+            )])
         }
     }
 
-    fn deprovision_node(&self, hostname: &str, node: &ScalingNode) -> ScaleLock {
-        info!(%hostname, "De-provision node");
+    fn deprovision_node(
+        &self,
+        hostname: &str,
+        node: &ScalingNode,
+        cause: NodeDrainingCause,
+    ) -> ScaleLock {
+        info!(%hostname, cause = format!("{:?}", cause).as_str(), "De-provision node");
         send!(node.controller.deprovision_node(NodeDrainingCause::Scaling));
 
         ScaleLock::new(hostname.into(), ScaleLockExpectation::Gone)

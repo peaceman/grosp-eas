@@ -34,6 +34,7 @@ digraph node_controller_state_machine {
 
     draining -> active
     draining -> deprovisioning
+    draining -> ready
 
     deprovisioning -> deprovisioned
 }

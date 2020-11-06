@@ -9,6 +9,14 @@ impl MachineState for Draining {}
 impl Handler for Data<Draining> {
     async fn handle(self, event: Option<NodeMachineEvent>) -> NodeMachine {
         match (event, &self.state.cause) {
+            (None, NodeDrainingCause::Scaling) if self.reached_draining_time() => {
+                info!("Reached draining time of node; switch into ready state");
+
+                NodeMachine::Ready(Data {
+                    shared: self.shared,
+                    state: Ready::new(self.state.node_info, self.state.stats_streamer),
+                })
+            }
             (None, _) if self.reached_draining_time() => {
                 info!("Reached draining time of node; start de-provisioning");
 
