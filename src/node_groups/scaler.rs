@@ -321,6 +321,13 @@ impl NodeGroupScaler {
                 .unwrap_or(0i32)
     }
 
+    fn release_spare_lock(&mut self, hostname: &str) {
+        info!(hostname, "Release spare lock");
+
+        self.scale_locks_spare.up.remove(hostname);
+        self.scale_locks_spare.down.remove(hostname);
+    }
+
     #[tracing::instrument(
         name = "NodeGroupScaler::provision_spare_nodes"
         skip(self),
@@ -501,8 +508,12 @@ impl NodeGroupScaler {
         info!(%hostname, "Found activatable ready node");
         send!(node.controller.activate_node());
 
+        let hostname = hostname.clone();
+
+        self.release_spare_lock(hostname.as_str());
+
         Some(vec![ScaleLock::new(
-            hostname.clone(),
+            hostname,
             ScaleLockExpectation::State(NodeState::Active),
         )])
     }
