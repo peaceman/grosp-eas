@@ -254,17 +254,20 @@ impl NodeGroupScaler {
         // check scale down locks
         self.scale_spare_down.retain({
             let nodes = &self.nodes;
-            move |hostname, lock| check_scale_lock(nodes, lock)
+            move |hostname, lock| !is_releasable_scale_lock(nodes, lock)
         });
 
         // check scale up locks
         self.scale_spare_up.retain({
             let nodes = &self.nodes;
-            move |hostname, lock| check_scale_lock(nodes, lock)
+            move |hostname, lock| !is_releasable_scale_lock(nodes, lock)
         });
 
-        let mut ready_nodes = self.nodes.values().filter(|n| n.state.is_ready()).count() as u32;
-        ready_nodes += self.scale_spare_up.len() as u32 - self.scale_spare_down.len() as u32;
+        let active_scale_up_locks = self.scale_spare_up.len();
+        let active_scale_down_locks = self.scale_spare_down.len();
+
+        let ready_nodes = self.nodes.values().filter(|n| n.state.is_ready()).count() as u32;
+        let projected_ready_nodes = ready_nodes + self.scale_spare_up.len() as u32;
 
         let (min_spare_nodes, max_spare_nodes) = {
             let config = self.node_group.config.as_ref().unwrap();
@@ -274,8 +277,8 @@ impl NodeGroupScaler {
 
         let mut node_change = max_spare_nodes
             .map(|max| {
-                if ready_nodes > max {
-                    max as i32 - ready_nodes as i32
+                if projected_ready_nodes > max {
+                    max as i32 - projected_ready_nodes as i32
                 } else {
                     0
                 }
@@ -284,8 +287,8 @@ impl NodeGroupScaler {
 
         node_change += min_spare_nodes
             .map(|min| {
-                if ready_nodes < min {
-                    min - ready_nodes
+                if projected_ready_nodes < min {
+                    min - projected_ready_nodes
                 } else {
                     0
                 }
@@ -293,7 +296,10 @@ impl NodeGroupScaler {
             .map(|v| v as i32)
             .unwrap_or(0i32);
 
-        info!(node_change);
+        info!(
+            node_change,
+            ready_nodes, projected_ready_nodes, active_scale_up_locks, active_scale_down_locks
+        );
 
         if node_change.is_positive() {
             self.provision_spare_nodes(node_change as u32);
@@ -424,7 +430,7 @@ impl NodeGroupScaler {
     async fn check_scale_locks(&mut self) {
         self.scale_locks = match self.scale_locks.take() {
             Some(mut scale_locks) => {
-                scale_locks.retain(|scale_lock| !check_scale_lock(&self.nodes, scale_lock));
+                scale_locks.retain(|scale_lock| !is_releasable_scale_lock(&self.nodes, scale_lock));
 
                 if scale_locks.is_empty() {
                     None
@@ -677,7 +683,7 @@ fn get_min_active_nodes(node_group: &NodeGroup) -> u32 {
         .unwrap_or(1)
 }
 
-fn check_scale_lock(nodes: &HashMap<String, ScalingNode>, scale_lock: &ScaleLock) -> bool {
+fn is_releasable_scale_lock(nodes: &HashMap<String, ScalingNode>, scale_lock: &ScaleLock) -> bool {
     // todo scale lock expiry
     info!(scale_lock = format!("{:?}", scale_lock).as_str());
 
