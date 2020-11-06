@@ -329,10 +329,12 @@ impl NodeGroupScaler {
     }
 
     fn release_spare_lock(&mut self, hostname: &str) {
-        info!(hostname, "Release spare lock");
+        let up = self.scale_locks_spare.up.remove(hostname);
+        let down = self.scale_locks_spare.down.remove(hostname);
 
-        self.scale_locks_spare.up.remove(hostname);
-        self.scale_locks_spare.down.remove(hostname);
+        if up.or(down).is_some() {
+            info!(hostname, "Release spare lock");
+        }
     }
 
     #[tracing::instrument(
