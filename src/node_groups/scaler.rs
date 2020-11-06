@@ -32,8 +32,13 @@ pub struct NodeGroupScaler {
     dns_provider: Addr<dyn DnsProvider>,
     node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
     hostname_generator: Arc<dyn HostnameGenerator>,
-    scale_spare_up: HashMap<String, ScaleLock>,
-    scale_spare_down: HashMap<String, ScaleLock>,
+    scale_locks_spare: SpareScaleLocks,
+}
+
+#[derive(Default)]
+struct SpareScaleLocks {
+    up: HashMap<String, ScaleLock>,
+    down: HashMap<String, ScaleLock>,
 }
 
 struct ScalingNode {
@@ -57,8 +62,7 @@ impl NodeGroupScaler {
             addr: Default::default(),
             nodes: Default::default(),
             scale_locks: None,
-            scale_spare_up: Default::default(),
-            scale_spare_down: Default::default(),
+            scale_locks_spare: Default::default(),
             node_discovery_provider,
             cloud_provider,
             dns_provider,
@@ -251,50 +255,15 @@ impl NodeGroupScaler {
             return;
         }
 
-        // check scale down locks
-        self.scale_spare_down.retain({
-            let nodes = &self.nodes;
-            move |hostname, lock| !is_releasable_scale_lock(nodes, lock)
-        });
+        self.check_spare_scale_locks();
 
-        // check scale up locks
-        self.scale_spare_up.retain({
-            let nodes = &self.nodes;
-            move |hostname, lock| !is_releasable_scale_lock(nodes, lock)
-        });
-
-        let active_scale_up_locks = self.scale_spare_up.len();
-        let active_scale_down_locks = self.scale_spare_down.len();
+        let active_scale_up_locks = self.scale_locks_spare.up.len();
+        let active_scale_down_locks = self.scale_locks_spare.down.len();
 
         let ready_nodes = self.nodes.values().filter(|n| n.state.is_ready()).count() as u32;
-        let projected_ready_nodes = ready_nodes + self.scale_spare_up.len() as u32;
+        let projected_ready_nodes = ready_nodes + active_scale_up_locks as u32;
 
-        let (min_spare_nodes, max_spare_nodes) = {
-            let config = self.node_group.config.as_ref().unwrap();
-
-            (config.min_spare_nodes, config.max_spare_nodes)
-        };
-
-        let mut node_change = max_spare_nodes
-            .map(|max| {
-                if projected_ready_nodes > max {
-                    max as i32 - projected_ready_nodes as i32
-                } else {
-                    0
-                }
-            })
-            .unwrap_or(0i32);
-
-        node_change += min_spare_nodes
-            .map(|min| {
-                if projected_ready_nodes < min {
-                    min - projected_ready_nodes
-                } else {
-                    0
-                }
-            })
-            .map(|v| v as i32)
-            .unwrap_or(0i32);
+        let node_change = self.determine_necessary_spare_node_change(projected_ready_nodes);
 
         info!(
             node_change,
@@ -308,6 +277,50 @@ impl NodeGroupScaler {
         }
     }
 
+    fn check_spare_scale_locks(&mut self) {
+        // check scale down locks
+        self.scale_locks_spare.down.retain({
+            let nodes = &self.nodes;
+            move |hostname, lock| !is_releasable_scale_lock(nodes, lock)
+        });
+
+        // check scale up locks
+        self.scale_locks_spare.up.retain({
+            let nodes = &self.nodes;
+            move |hostname, lock| !is_releasable_scale_lock(nodes, lock)
+        });
+    }
+
+    fn determine_necessary_spare_node_change(&self, ready_nodes: u32) -> i32 {
+        let (min_spare_nodes, max_spare_nodes) = {
+            let config = self.node_group.config.as_ref().unwrap();
+
+            (config.min_spare_nodes, config.max_spare_nodes)
+        };
+
+        let node_change = max_spare_nodes
+            .map(|max| {
+                if ready_nodes > max {
+                    max as i32 - ready_nodes as i32
+                } else {
+                    0
+                }
+            })
+            .unwrap_or(0i32);
+
+        node_change
+            + min_spare_nodes
+                .map(|min| {
+                    if ready_nodes < min {
+                        min - ready_nodes
+                    } else {
+                        0
+                    }
+                })
+                .map(|v| v as i32)
+                .unwrap_or(0i32)
+    }
+
     #[tracing::instrument(
         name = "NodeGroupScaler::provision_spare_nodes"
         skip(self),
@@ -317,7 +330,8 @@ impl NodeGroupScaler {
         for i in 0..amount {
             match self.try_provision_new_node() {
                 Some(scale_lock) => {
-                    self.scale_spare_up
+                    self.scale_locks_spare
+                        .up
                         .insert(scale_lock.hostname.clone(), scale_lock);
 
                     ()
@@ -342,7 +356,9 @@ impl NodeGroupScaler {
         for (hostname, node) in ready_nodes {
             let scale_lock = self.deprovision_node(hostname.as_str(), node);
 
-            self.scale_spare_down.insert(hostname.into(), scale_lock);
+            self.scale_locks_spare
+                .down
+                .insert(hostname.into(), scale_lock);
         }
     }
 
