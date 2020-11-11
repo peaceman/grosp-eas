@@ -70,26 +70,30 @@ fn init_logging() -> Result<(), Box<dyn std::error::Error>> {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logging()?;
 
-    let nss_stream_factory = NSSStreamFactory::new(
+    let ca_cert =
         tokio::fs::read("/Users/peaceman/Development/ops/grosp-hcloud/data/pki/main/ca/ca.pem")
-            .await?,
-        tokio::fs::read(
-            "/Users/peaceman/Development/ops/grosp-hcloud/data/pki/main/certs/nss-alpha.pem",
-        )
-        .await?,
-        tokio::fs::read(
-            "/Users/peaceman/Development/ops/grosp-hcloud/data/pki/main/certs/nss-alpha-key.p8",
-        )
-        .await?,
+            .await?;
+    let client_cert = tokio::fs::read(
+        "/Users/peaceman/Development/ops/grosp-hcloud/data/pki/main/certs/nss-alpha.pem",
+    )
+    .await?;
+    let client_key = tokio::fs::read(
+        "/Users/peaceman/Development/ops/grosp-hcloud/data/pki/main/certs/nss-alpha-key.p8",
+    )
+    .await?;
+    let stream_factory = Box::new(NSSStreamFactory::new(
+        ca_cert,
+        client_cert,
+        client_key,
         "nss-edge-node".into(),
-    );
+    ));
 
-    let mut stream = nss_stream_factory.create_stream("localhost".into());
-    while let Some(stats) = stream.next().await {
-        info!("STATS: {:?}", stats);
-    }
+    // let mut stream = nss_stream_factory.create_stream("localhost".into());
+    // while let Some(stats) = stream.next().await {
+    //     info!("STATS: {:?}", stats);
+    // }
 
-    let stream_factory = Box::new(StreamFactory);
+    // let stream_factory = Box::new(StreamFactory);
     let node_discovery_provider = spawn_actor(MockNodeDiscovery);
     let cloud_provider = spawn_actor(FileCloudProvider::new(
         "test_files/node_exploration",

@@ -10,6 +10,7 @@ use tokio::stream::Stream;
 use tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint, Error, Identity};
 use tracing::error;
 use tracing::info;
+use tracing_futures::Instrument;
 
 pub mod grpc {
     tonic::include_proto!("nodestats");
@@ -43,14 +44,15 @@ impl NodeStatsStreamFactory for NSSStreamFactory {
         let client_tls_config = self.client_tls_config.clone();
         let uri = Uri::builder()
             .scheme("https")
-            .authority(format!("{}:{}", hostname, 3332).as_str())
+            .authority(format!("{}:{}", hostname, 3332).as_str()) // todo configurable port
             .path_and_query("")
             .build()
             .unwrap();
 
-        let mut first_try = true;
+        let tracing_span = tracing::info_span!("NodeStatsStream", uri = uri.to_string().as_str());
 
-        Box::pin(stream! {
+        let mut first_try = true;
+        let stream = stream! {
             loop {
                 if first_try {
                     first_try = false;
@@ -75,7 +77,7 @@ impl NodeStatsStreamFactory for NSSStreamFactory {
 
                 if let Err(e) = channel {
                     error!(
-                        uri = uri.to_string().as_str(),
+
                         error = format!("{:?}", e).as_str(),
                         "Failed to establish connection"
                     );
@@ -111,6 +113,8 @@ impl NodeStatsStreamFactory for NSSStreamFactory {
                     }
                 }
             }
-        })
+        };
+
+        Box::pin(stream.instrument(tracing_span))
     }
 }
