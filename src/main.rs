@@ -9,7 +9,7 @@ use edge_auto_scaler::node::discovery::{
 };
 use edge_auto_scaler::node::exploration::FileNodeExploration;
 use edge_auto_scaler::node::stats::{
-    FileNodeStatsStream, FileNodeStatsStreamFactory, NodeStatsStreamFactory,
+    FileNodeStatsStream, FileNodeStatsStreamFactory, NSSStreamFactory, NodeStatsStreamFactory,
 };
 use edge_auto_scaler::node::{NodeController, NodeDrainingCause, NodeStats};
 use edge_auto_scaler::node_groups::discovery::FileNodeGroupDiscovery;
@@ -69,6 +69,25 @@ fn init_logging() -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logging()?;
+
+    let nss_stream_factory = NSSStreamFactory::new(
+        tokio::fs::read("/Users/peaceman/Development/ops/grosp-hcloud/data/pki/main/ca/ca.pem")
+            .await?,
+        tokio::fs::read(
+            "/Users/peaceman/Development/ops/grosp-hcloud/data/pki/main/certs/nss-alpha.pem",
+        )
+        .await?,
+        tokio::fs::read(
+            "/Users/peaceman/Development/ops/grosp-hcloud/data/pki/main/certs/nss-alpha-key.p8",
+        )
+        .await?,
+        "nss-edge-node".into(),
+    );
+
+    let mut stream = nss_stream_factory.create_stream("localhost".into());
+    while let Some(stats) = stream.next().await {
+        info!("STATS: {:?}", stats);
+    }
 
     let stream_factory = Box::new(StreamFactory);
     let node_discovery_provider = spawn_actor(MockNodeDiscovery);
@@ -148,9 +167,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 struct StreamFactory;
 
 impl NodeStatsStreamFactory for StreamFactory {
-    fn create_stream(&self, hostname: String) -> Box<dyn Stream<Item = NodeStats> + Unpin + Send> {
+    fn create_stream(&self, hostname: String) -> Pin<Box<dyn Stream<Item = NodeStats> + Send>> {
         info!("Creating NodeStatsStream for {}", hostname);
-        Box::new(FixedNodeStatsStream {
+        Box::pin(FixedNodeStatsStream {
             interval: tokio::time::interval(Duration::from_millis(100)),
         })
     }

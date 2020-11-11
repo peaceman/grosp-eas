@@ -1,0 +1,3 @@
+[submodule "proto/nodestats"]
+	path = proto/nodestats
+	url = git@github.com:peaceman/grosp-nss-proto.git

@@ -15,9 +15,9 @@ use tracing::info;
 pub struct FileNodeStatsStreamFactory;
 
 impl NodeStatsStreamFactory for FileNodeStatsStreamFactory {
-    fn create_stream(&self, hostname: String) -> Box<dyn Stream<Item = NodeStats> + Unpin + Send> {
+    fn create_stream(&self, hostname: String) -> Pin<Box<dyn Stream<Item = NodeStats> + Send>> {
         info!("Creating NodeStatsStream for {}", hostname);
-        Box::new(FileNodeStatsStream::new(format!(
+        Box::pin(FileNodeStatsStream::new(format!(
             "test_files/node_stats/{}.yml",
             hostname
         )))

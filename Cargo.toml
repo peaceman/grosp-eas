@@ -27,3 +27,10 @@ opentelemetry = "0.8.0"
 strum = { version = "0.19", features = ["derive"] }
 strum_macros = "0.19"
 rand = "0.7.3"
+tonic = { version = "0.3", features = ["transport", "tls"] }
+prost = "0.6"
+http = "0.2"
+async-stream = "0.3.0"
+
+[build-dependencies]
+tonic-build = "0.3"
