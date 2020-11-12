@@ -13,7 +13,7 @@ pub struct Config {
     // pub node_exploration: NodeExploration,
     // pub node_discovery_provider: NodeDiscoveryProvider,
     pub cloud_provider: CloudProvider,
-    // pub dns_provider: DnsProvider,
+    pub dns_provider: DnsProvider,
 }
 
 #[derive(Deserialize)]
@@ -70,7 +70,7 @@ pub enum CloudProvider {
 }
 
 #[derive(Deserialize)]
-#[serde(tag = "type")]
+#[serde(tag = "type", rename_all = "lowercase")]
 pub enum DnsProvider {
     Mock,
 }

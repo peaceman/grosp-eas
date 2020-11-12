@@ -2,7 +2,6 @@ use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::{call, upcast, Actor, ActorResult, Addr, Produces};
 use async_trait::async_trait;
 use chrono::Utc;
-use edge_auto_scaler::cloud_provider;
 use edge_auto_scaler::cloud_provider::{CloudNodeInfo, CloudProvider, FileCloudProvider};
 use edge_auto_scaler::config::load_config;
 use edge_auto_scaler::dns_provider::DnsProvider;
@@ -17,6 +16,7 @@ use edge_auto_scaler::node::stats::{
 use edge_auto_scaler::node::{NodeController, NodeDrainingCause, NodeStats};
 use edge_auto_scaler::node_groups::discovery::FileNodeGroupDiscovery;
 use edge_auto_scaler::node_groups::NodeGroupsController;
+use edge_auto_scaler::{cloud_provider, dns_provider};
 use env_logger::Env;
 use futures::task::Context;
 use opentelemetry::api::Provider;
@@ -76,14 +76,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let stream_factory = build_stream_factory_from_config(Arc::clone(&config))?;
     let cloud_provider = cloud_provider::build_from_config(Arc::clone(&config))?;
+    let dns_provider = dns_provider::build_from_config(Arc::clone(&config))?;
 
     let node_discovery_provider = spawn_actor(MockNodeDiscovery);
-    let dns_provider = spawn_actor(MockDnsProvider);
 
     let node_groups_controller = spawn_actor(NodeGroupsController::new(
         upcast!(node_discovery_provider),
         cloud_provider,
-        upcast!(dns_provider),
+        dns_provider,
         stream_factory.clone(),
         // Arc::new(vec![
         //     "beta.gt.n2305.link",
@@ -228,35 +228,6 @@ impl CloudProvider for MockCloudProvider {
     }
 
     async fn delete_node(&mut self, node_info: CloudNodeInfo) -> ActorResult<()> {
-        Produces::ok(())
-    }
-}
-
-struct MockDnsProvider;
-
-#[async_trait]
-impl Actor for MockDnsProvider {
-    async fn started(&mut self, _addr: Addr<Self>) -> ActorResult<()>
-    where
-        Self: Sized,
-    {
-        info!("Started MockDnsProvider");
-
-        Produces::ok(())
-    }
-}
-
-#[async_trait]
-impl DnsProvider for MockDnsProvider {
-    async fn create_records(
-        &mut self,
-        hostname: String,
-        ip_addresses: Vec<IpAddr>,
-    ) -> ActorResult<()> {
-        Produces::ok(())
-    }
-
-    async fn delete_records(&mut self, hostname: String) -> ActorResult<()> {
         Produces::ok(())
     }
 }
