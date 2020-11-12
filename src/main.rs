@@ -8,7 +8,7 @@ use edge_auto_scaler::dns_provider::DnsProvider;
 use edge_auto_scaler::node::discovery::{
     NodeDiscovery, NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState,
 };
-use edge_auto_scaler::node::exploration::FileNodeExploration;
+use edge_auto_scaler::node::exploration::NodeExploration;
 use edge_auto_scaler::node::stats::{
     build_stream_factory_from_config, FileNodeStatsStream, FileNodeStatsStreamFactory,
     NSSStreamFactory, NodeStatsStreamFactory,
@@ -102,12 +102,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         config.node_discovery.interval,
     ));
 
+    let _node_exploration = spawn_actor(NodeExploration::new(
+        cloud_provider.clone(),
+        upcast!(node_groups_controller.clone()),
+        config.node_exploration.interval,
+    ));
+
     let _node_group_discovery = spawn_actor(FileNodeGroupDiscovery::new(
         "test_files/node_groups",
-        upcast!(node_groups_controller.clone()),
-    ));
-    let _node_exploration = spawn_actor(FileNodeExploration::new(
-        "test_files/node_exploration",
         upcast!(node_groups_controller.clone()),
     ));
 
@@ -181,38 +183,5 @@ impl Stream for FixedNodeStatsStream {
 impl Drop for FixedNodeStatsStream {
     fn drop(&mut self) {
         info!("Drop FixedNodeStatsStream");
-    }
-}
-
-struct MockCloudProvider;
-
-#[async_trait]
-impl Actor for MockCloudProvider {
-    async fn started(&mut self, _addr: Addr<Self>) -> ActorResult<()>
-    where
-        Self: Sized,
-    {
-        info!("Started MockCloudProvider");
-
-        Produces::ok(())
-    }
-}
-
-#[async_trait]
-impl CloudProvider for MockCloudProvider {
-    async fn get_node_info(&mut self, hostname: String) -> ActorResult<Option<CloudNodeInfo>> {
-        Produces::ok(None)
-    }
-
-    async fn create_node(
-        &mut self,
-        hostname: String,
-        target_state: NodeDiscoveryState,
-    ) -> ActorResult<CloudNodeInfo> {
-        unimplemented!()
-    }
-
-    async fn delete_node(&mut self, node_info: CloudNodeInfo) -> ActorResult<()> {
-        Produces::ok(())
     }
 }

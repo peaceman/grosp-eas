@@ -1,4 +1,5 @@
 mod file;
+mod mock;
 
 use act_zero::{Actor, ActorResult, Addr};
 use async_trait::async_trait;
@@ -32,6 +33,7 @@ pub trait CloudProvider: Actor {
         target_state: NodeDiscoveryState,
     ) -> ActorResult<CloudNodeInfo>;
     async fn delete_node(&mut self, node_info: CloudNodeInfo) -> ActorResult<()>;
+    async fn get_nodes(&mut self) -> ActorResult<Vec<CloudNodeInfo>>;
 }
 
 pub fn build_from_config(config: AppConfig) -> anyhow::Result<Addr<dyn CloudProvider>> {

@@ -1,6 +1,7 @@
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryState};
 use crate::node::NodeState;
+use crate::utils;
 use crate::utils::path_append;
 use act_zero::{Actor, ActorResult, Addr, Produces, WeakAddr};
 use anyhow::Context;
@@ -131,4 +132,27 @@ impl CloudProvider for FileCloudProvider {
 
         Produces::ok(())
     }
+
+    #[tracing::instrument(name = "FileCloudProvider::get_nodes", skip(self))]
+    async fn get_nodes(&mut self) -> ActorResult<Vec<CloudNodeInfo>> {
+        Produces::ok(scan_for_nodes(&self.exploration_directory).await)
+    }
+}
+
+async fn scan_for_nodes(path: impl AsRef<Path>) -> Vec<CloudNodeInfo> {
+    use futures::TryFutureExt;
+
+    utils::scan_for_files(&path)
+        .and_then(|files| utils::parse_files(files, parse_node_discovery_file))
+        .await
+        .unwrap_or_else(|_| vec![])
+}
+
+fn parse_node_discovery_file(path: impl AsRef<Path>) -> anyhow::Result<CloudNodeInfo> {
+    let file = File::open(&path)?;
+    let reader = BufReader::new(file);
+    let result = serde_yaml::from_reader(reader)
+        .with_context(|| format!("Path {}", path.as_ref().display()))?;
+
+    Ok(result)
 }

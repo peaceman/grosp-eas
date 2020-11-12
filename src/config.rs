@@ -10,7 +10,7 @@ pub struct Config {
     pub node_stats: NodeStats,
     // pub node_group_discovery: NodeGroupDiscovery,
     pub node_discovery: NodeDiscovery,
-    // pub node_exploration: NodeExploration,
+    pub node_exploration: NodeExploration,
     pub node_discovery_provider: NodeDiscoveryProvider,
     pub cloud_provider: CloudProvider,
     pub dns_provider: DnsProvider,
@@ -59,6 +59,7 @@ pub struct NodeDiscovery {
 
 #[derive(Deserialize)]
 pub struct NodeExploration {
+    #[serde(with = "humantime_serde")]
     pub interval: Duration,
 }
 
