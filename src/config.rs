@@ -8,10 +8,11 @@ use std::time::Duration;
 #[derive(Deserialize)]
 pub struct Config {
     pub node_stats: NodeStats,
-    // pub node_group_discovery: NodeGroupDiscovery,
+    pub node_group_discovery: NodeGroupDiscovery,
     pub node_discovery: NodeDiscovery,
     pub node_exploration: NodeExploration,
     pub node_discovery_provider: NodeDiscoveryProvider,
+    pub node_group_discovery_provider: NodeGroupDiscoveryProvider,
     pub cloud_provider: CloudProvider,
     pub dns_provider: DnsProvider,
 }
@@ -46,9 +47,9 @@ pub enum NodeDiscoveryProvider {
 }
 
 #[derive(Deserialize)]
-#[serde(tag = "type")]
-pub enum NodeGroupDiscovery {
-    File { interval: Duration, path: String },
+pub struct NodeGroupDiscovery {
+    #[serde(with = "humantime_serde")]
+    pub interval: Duration,
 }
 
 #[derive(Deserialize)]
@@ -76,6 +77,12 @@ pub enum CloudProvider {
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum DnsProvider {
     Mock,
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum NodeGroupDiscoveryProvider {
+    File { path: String },
 }
 
 pub fn load_config() -> anyhow::Result<AppConfig> {

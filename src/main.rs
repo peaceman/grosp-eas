@@ -14,9 +14,9 @@ use edge_auto_scaler::node::stats::{
     NSSStreamFactory, NodeStatsStreamFactory,
 };
 use edge_auto_scaler::node::{NodeController, NodeDrainingCause, NodeStats};
-use edge_auto_scaler::node_groups::discovery::FileNodeGroupDiscovery;
+use edge_auto_scaler::node_groups::discovery::{FileNodeGroupDiscovery, NodeGroupDiscovery};
 use edge_auto_scaler::node_groups::NodeGroupsController;
-use edge_auto_scaler::{cloud_provider, dns_provider, node};
+use edge_auto_scaler::{cloud_provider, dns_provider, node, node_groups};
 use env_logger::Env;
 use futures::task::Context;
 use opentelemetry::api::Provider;
@@ -80,6 +80,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let node_discovery_provider =
         node::discovery::provider::build_from_config(Arc::clone(&config))?;
 
+    let node_group_discovery_provider =
+        node_groups::discovery::provider::build_from_config(Arc::clone(&config))?;
+
     let node_groups_controller = spawn_actor(NodeGroupsController::new(
         node_discovery_provider.clone(),
         cloud_provider.clone(),
@@ -108,9 +111,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         config.node_exploration.interval,
     ));
 
-    let _node_group_discovery = spawn_actor(FileNodeGroupDiscovery::new(
-        "test_files/node_groups",
+    let _node_group_discovery = spawn_actor(NodeGroupDiscovery::new(
+        node_group_discovery_provider.clone(),
         upcast!(node_groups_controller.clone()),
+        config.node_group_discovery.interval,
     ));
 
     // let node_controller = spawn_actor(NodeController::new(

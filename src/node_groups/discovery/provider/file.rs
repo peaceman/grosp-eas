@@ -1,5 +1,6 @@
 use tracing::{info, Instrument};
 
+use crate::node_groups::discovery::provider::NodeGroupDiscoveryProvider;
 use crate::node_groups::discovery::NodeGroupDiscoveryObserver;
 use crate::node_groups::NodeGroup;
 use crate::utils;
@@ -19,20 +20,13 @@ use tokio::fs::DirEntry;
 
 pub struct FileNodeGroupDiscovery {
     directory_path: PathBuf,
-    discovery_observer: Addr<dyn NodeGroupDiscoveryObserver>,
-    timer: Timer,
     addr: WeakAddr<Self>,
 }
 
 impl FileNodeGroupDiscovery {
-    pub fn new(
-        directory_path: impl AsRef<Path>,
-        discovery_observer: Addr<dyn NodeGroupDiscoveryObserver>,
-    ) -> Self {
+    pub fn new(directory_path: impl AsRef<Path>) -> Self {
         FileNodeGroupDiscovery {
             directory_path: directory_path.as_ref().into(),
-            discovery_observer,
-            timer: Default::default(),
             addr: Default::default(),
         }
     }
@@ -53,20 +47,6 @@ impl Actor for FileNodeGroupDiscovery {
 
         self.addr = addr.downgrade();
 
-        self.timer
-            .set_interval_weak(self.addr.clone(), Duration::from_secs(5));
-
-        Produces::ok(())
-    }
-}
-
-#[async_trait]
-impl Tick for FileNodeGroupDiscovery {
-    async fn tick(&mut self) -> ActorResult<()> {
-        if self.timer.tick() {
-            send!(self.addr.discover());
-        }
-
         Produces::ok(())
     }
 }
@@ -77,21 +57,15 @@ impl Drop for FileNodeGroupDiscovery {
     }
 }
 
-impl FileNodeGroupDiscovery {
+#[async_trait]
+impl NodeGroupDiscoveryProvider for FileNodeGroupDiscovery {
     #[tracing::instrument(
-        name = "FileNodeGroupDiscovery::discover"
+        name = "FileNodeGroupDiscovery::discover_node_groups"
         skip(self),
         fields(path = %self.directory_path.display())
     )]
-    async fn discover(&self) {
-        let node_groups = scan_for_node_groups(&self.directory_path).await;
-
-        for node_group in node_groups.into_iter() {
-            info!("Discovered node group: {:?}", node_group);
-            send!(self
-                .discovery_observer
-                .observe_node_group_discovery(node_group));
-        }
+    async fn discover_node_groups(&mut self) -> ActorResult<Vec<NodeGroup>> {
+        Produces::ok(scan_for_node_groups(&self.directory_path).await)
     }
 }
 
