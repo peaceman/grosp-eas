@@ -2,7 +2,7 @@ pub mod provider;
 
 use crate::node_groups::discovery::provider::NodeGroupDiscoveryProvider;
 use crate::node_groups::NodeGroup;
-use act_zero::runtimes::panic::Timer;
+use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
 use act_zero::{call, send};
 use act_zero::{Actor, ActorResult, Addr, Produces, WeakAddr};
