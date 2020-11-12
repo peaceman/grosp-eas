@@ -259,14 +259,21 @@ impl NodeGroupScaler {
         self.check_spare_scale_locks();
 
         let mut ready_nodes = HashSet::new();
-        self.nodes.keys().for_each(|h| {
-            ready_nodes.remove(h);
-        });
 
+        // add currently existing ready nodes
+        self.nodes
+            .iter()
+            .filter(|(h, sn)| sn.state.is_ready())
+            .for_each(|(h, _sn)| {
+                ready_nodes.insert(h);
+            });
+
+        // add nodes that are expected to be ready soon
         self.scale_locks_spare.up.keys().for_each(|h| {
             ready_nodes.insert(h);
         });
 
+        // remove nodes that are expected to be gone
         self.scale_locks_spare.down.keys().for_each(|h| {
             ready_nodes.remove(h);
         });
