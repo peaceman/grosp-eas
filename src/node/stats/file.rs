@@ -1,4 +1,3 @@
-use crate::node::discovery::FileNodeDiscovery;
 use crate::node::stats::NodeStatsStreamFactory;
 use crate::node::NodeStats;
 use std::fs::File;

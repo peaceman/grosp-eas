@@ -1,6 +1,7 @@
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryState};
 use crate::node::NodeState;
+use crate::utils::path_append;
 use act_zero::{Actor, ActorResult, Addr, Produces, WeakAddr};
 use anyhow::Context;
 use async_trait::async_trait;
@@ -130,11 +131,4 @@ impl CloudProvider for FileCloudProvider {
 
         Produces::ok(())
     }
-}
-
-fn path_append(path: impl AsRef<Path>, append: &str) -> PathBuf {
-    let mut os = path.as_ref().to_path_buf().into_os_string();
-    os.push(append);
-
-    PathBuf::from(os)
 }

@@ -9,9 +9,9 @@ use std::time::Duration;
 pub struct Config {
     pub node_stats: NodeStats,
     // pub node_group_discovery: NodeGroupDiscovery,
-    // pub node_discovery: NodeDiscovery,
+    pub node_discovery: NodeDiscovery,
     // pub node_exploration: NodeExploration,
-    // pub node_discovery_provider: NodeDiscoveryProvider,
+    pub node_discovery_provider: NodeDiscoveryProvider,
     pub cloud_provider: CloudProvider,
     pub dns_provider: DnsProvider,
 }
@@ -39,9 +39,10 @@ pub struct NodeStatsNSSTLS {
 }
 
 #[derive(Deserialize)]
-#[serde(tag = "type")]
+#[serde(tag = "type", rename_all = "lowercase")]
 pub enum NodeDiscoveryProvider {
-    File { interval: Duration, path: String },
+    Mock,
+    File { path: String },
 }
 
 #[derive(Deserialize)]
@@ -52,12 +53,13 @@ pub enum NodeGroupDiscovery {
 
 #[derive(Deserialize)]
 pub struct NodeDiscovery {
-    interval: Duration,
+    #[serde(with = "humantime_serde")]
+    pub interval: Duration,
 }
 
 #[derive(Deserialize)]
 pub struct NodeExploration {
-    interval: Duration,
+    pub interval: Duration,
 }
 
 #[derive(Deserialize)]

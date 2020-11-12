@@ -6,7 +6,7 @@ use edge_auto_scaler::cloud_provider::{CloudNodeInfo, CloudProvider, FileCloudPr
 use edge_auto_scaler::config::load_config;
 use edge_auto_scaler::dns_provider::DnsProvider;
 use edge_auto_scaler::node::discovery::{
-    FileNodeDiscovery, NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState,
+    NodeDiscovery, NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState,
 };
 use edge_auto_scaler::node::exploration::FileNodeExploration;
 use edge_auto_scaler::node::stats::{
@@ -16,7 +16,7 @@ use edge_auto_scaler::node::stats::{
 use edge_auto_scaler::node::{NodeController, NodeDrainingCause, NodeStats};
 use edge_auto_scaler::node_groups::discovery::FileNodeGroupDiscovery;
 use edge_auto_scaler::node_groups::NodeGroupsController;
-use edge_auto_scaler::{cloud_provider, dns_provider};
+use edge_auto_scaler::{cloud_provider, dns_provider, node};
 use env_logger::Env;
 use futures::task::Context;
 use opentelemetry::api::Provider;
@@ -77,13 +77,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let stream_factory = build_stream_factory_from_config(Arc::clone(&config))?;
     let cloud_provider = cloud_provider::build_from_config(Arc::clone(&config))?;
     let dns_provider = dns_provider::build_from_config(Arc::clone(&config))?;
-
-    let node_discovery_provider = spawn_actor(MockNodeDiscovery);
+    let node_discovery_provider =
+        node::discovery::provider::build_from_config(Arc::clone(&config))?;
 
     let node_groups_controller = spawn_actor(NodeGroupsController::new(
-        upcast!(node_discovery_provider),
-        cloud_provider,
-        dns_provider,
+        node_discovery_provider.clone(),
+        cloud_provider.clone(),
+        dns_provider.clone(),
         stream_factory.clone(),
         // Arc::new(vec![
         //     "beta.gt.n2305.link",
@@ -96,16 +96,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Arc::new("gt.n2305.link".to_owned()),
     ));
 
+    let _node_discovery = spawn_actor(NodeDiscovery::new(
+        node_discovery_provider.clone(),
+        upcast!(node_groups_controller.clone()),
+        config.node_discovery.interval,
+    ));
+
     let _node_group_discovery = spawn_actor(FileNodeGroupDiscovery::new(
         "test_files/node_groups",
         upcast!(node_groups_controller.clone()),
     ));
     let _node_exploration = spawn_actor(FileNodeExploration::new(
         "test_files/node_exploration",
-        upcast!(node_groups_controller.clone()),
-    ));
-    let _node_discovery = spawn_actor(FileNodeDiscovery::new(
-        "test_files/node_discovery",
         upcast!(node_groups_controller.clone()),
     ));
 
@@ -179,23 +181,6 @@ impl Stream for FixedNodeStatsStream {
 impl Drop for FixedNodeStatsStream {
     fn drop(&mut self) {
         info!("Drop FixedNodeStatsStream");
-    }
-}
-
-struct MockNodeDiscovery;
-
-impl Actor for MockNodeDiscovery {}
-
-#[async_trait]
-impl NodeDiscoveryProvider for MockNodeDiscovery {
-    async fn update_state(
-        &mut self,
-        hostname: String,
-        state: NodeDiscoveryState,
-    ) -> ActorResult<()> {
-        info!("Updating state of node {} {:?}", hostname, state);
-
-        Produces::ok(())
     }
 }
 

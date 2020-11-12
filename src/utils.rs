@@ -49,3 +49,10 @@ pub async fn parse_files<T: 'static + Send>(
 
     Ok(results)
 }
+
+pub fn path_append(path: impl AsRef<Path>, append: &str) -> PathBuf {
+    let mut os = path.as_ref().to_path_buf().into_os_string();
+    os.push(append);
+
+    PathBuf::from(os)
+}
