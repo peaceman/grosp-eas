@@ -21,6 +21,7 @@ use grpc::{node_stats_service_client::NodeStatsServiceClient, LiveNodeStatsReque
 #[derive(Clone, Debug)]
 pub struct NSSStreamFactory {
     client_tls_config: ClientTlsConfig,
+    service_port: u16,
 }
 
 impl NSSStreamFactory {
@@ -29,12 +30,14 @@ impl NSSStreamFactory {
         client_cert: Vec<u8>,
         client_key: Vec<u8>,
         sni_domain_name: String,
+        service_port: u16,
     ) -> Self {
         Self {
             client_tls_config: ClientTlsConfig::new()
                 .domain_name(sni_domain_name)
                 .ca_certificate(Certificate::from_pem(ca_cert))
                 .identity(Identity::from_pem(client_cert, client_key)),
+            service_port,
         }
     }
 }
@@ -44,7 +47,7 @@ impl NodeStatsStreamFactory for NSSStreamFactory {
         let client_tls_config = self.client_tls_config.clone();
         let uri = Uri::builder()
             .scheme("https")
-            .authority(format!("{}:{}", hostname, 3332).as_str()) // todo configurable port
+            .authority(format!("{}:{}", hostname, self.service_port).as_str())
             .path_and_query("")
             .build()
             .unwrap();

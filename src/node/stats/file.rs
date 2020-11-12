@@ -12,15 +12,26 @@ use tokio::stream::Stream;
 use tracing::info;
 
 #[derive(Clone, Debug)]
-pub struct FileNodeStatsStreamFactory;
+pub struct FileNodeStatsStreamFactory {
+    path: String,
+    interval: Duration,
+}
+
+impl FileNodeStatsStreamFactory {
+    pub fn new(path: String, interval: Duration) -> Self {
+        Self { path, interval }
+    }
+}
 
 impl NodeStatsStreamFactory for FileNodeStatsStreamFactory {
     fn create_stream(&self, hostname: String) -> Pin<Box<dyn Stream<Item = NodeStats> + Send>> {
         info!("Creating NodeStatsStream for {}", hostname);
-        Box::pin(FileNodeStatsStream::new(format!(
-            "test_files/node_stats/{}.yml",
-            hostname
-        )))
+        let filename = format!("{}.yml", hostname);
+
+        let path: &Path = self.path.as_ref();
+        let path = path.join(filename);
+
+        Box::pin(FileNodeStatsStream::new(path))
     }
 }
 

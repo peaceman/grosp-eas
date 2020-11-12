@@ -3,13 +3,15 @@ use act_zero::{call, upcast, Actor, ActorResult, Addr, Produces};
 use async_trait::async_trait;
 use chrono::Utc;
 use edge_auto_scaler::cloud_provider::{CloudNodeInfo, CloudProvider, FileCloudProvider};
+use edge_auto_scaler::config::load_config;
 use edge_auto_scaler::dns_provider::DnsProvider;
 use edge_auto_scaler::node::discovery::{
     FileNodeDiscovery, NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState,
 };
 use edge_auto_scaler::node::exploration::FileNodeExploration;
 use edge_auto_scaler::node::stats::{
-    FileNodeStatsStream, FileNodeStatsStreamFactory, NSSStreamFactory, NodeStatsStreamFactory,
+    build_stream_factory_from_config, FileNodeStatsStream, FileNodeStatsStreamFactory,
+    NSSStreamFactory, NodeStatsStreamFactory,
 };
 use edge_auto_scaler::node::{NodeController, NodeDrainingCause, NodeStats};
 use edge_auto_scaler::node_groups::discovery::FileNodeGroupDiscovery;
@@ -69,31 +71,10 @@ fn init_logging() -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logging()?;
+    let config = load_config()?;
 
-    let ca_cert =
-        tokio::fs::read("/Users/peaceman/Development/ops/grosp-hcloud/data/pki/main/ca/ca.pem")
-            .await?;
-    let client_cert = tokio::fs::read(
-        "/Users/peaceman/Development/ops/grosp-hcloud/data/pki/main/certs/nss-alpha.pem",
-    )
-    .await?;
-    let client_key = tokio::fs::read(
-        "/Users/peaceman/Development/ops/grosp-hcloud/data/pki/main/certs/nss-alpha-key.p8",
-    )
-    .await?;
-    let stream_factory = Box::new(NSSStreamFactory::new(
-        ca_cert,
-        client_cert,
-        client_key,
-        "nss-edge-node".into(),
-    ));
+    let stream_factory = build_stream_factory_from_config(config)?;
 
-    // let mut stream = nss_stream_factory.create_stream("localhost".into());
-    // while let Some(stats) = stream.next().await {
-    //     info!("STATS: {:?}", stats);
-    // }
-
-    // let stream_factory = Box::new(StreamFactory);
     let node_discovery_provider = spawn_actor(MockNodeDiscovery);
     let cloud_provider = spawn_actor(FileCloudProvider::new(
         "test_files/node_exploration",
