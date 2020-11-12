@@ -8,12 +8,12 @@ use std::time::Duration;
 #[derive(Deserialize)]
 pub struct Config {
     pub node_stats: NodeStats,
-    pub node_group_discovery: NodeGroupDiscovery,
-    pub node_discovery: NodeDiscovery,
-    pub node_exploration: NodeExploration,
-    pub node_discovery_provider: NodeDiscoveryProvider,
+    // pub node_group_discovery: NodeGroupDiscovery,
+    // pub node_discovery: NodeDiscovery,
+    // pub node_exploration: NodeExploration,
+    // pub node_discovery_provider: NodeDiscoveryProvider,
     pub cloud_provider: CloudProvider,
-    pub dns_provider: DnsProvider,
+    // pub dns_provider: DnsProvider,
 }
 
 #[derive(Deserialize)]
@@ -61,7 +61,7 @@ pub struct NodeExploration {
 }
 
 #[derive(Deserialize)]
-#[serde(tag = "type")]
+#[serde(tag = "type", rename_all = "lowercase")]
 pub enum CloudProvider {
     File {
         exploration_path: String,

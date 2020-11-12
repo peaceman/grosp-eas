@@ -1,13 +1,17 @@
 mod file;
 
-use act_zero::{Actor, ActorResult};
+use act_zero::{Actor, ActorResult, Addr};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 
+use crate::config;
 use crate::node::discovery::NodeDiscoveryState;
 use crate::node::NodeState;
+use crate::AppConfig;
+use act_zero::runtimes::tokio::spawn_actor;
+use act_zero::upcast;
 pub use file::FileCloudProvider;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -28,4 +32,16 @@ pub trait CloudProvider: Actor {
         target_state: NodeDiscoveryState,
     ) -> ActorResult<CloudNodeInfo>;
     async fn delete_node(&mut self, node_info: CloudNodeInfo) -> ActorResult<()>;
+}
+
+pub fn build_from_config(config: AppConfig) -> anyhow::Result<Addr<dyn CloudProvider>> {
+    Ok(match &config.cloud_provider {
+        config::CloudProvider::File {
+            exploration_path,
+            discovery_path,
+        } => upcast!(spawn_actor(FileCloudProvider::new(
+            exploration_path,
+            discovery_path
+        ))),
+    })
 }

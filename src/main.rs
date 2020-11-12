@@ -2,6 +2,7 @@ use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::{call, upcast, Actor, ActorResult, Addr, Produces};
 use async_trait::async_trait;
 use chrono::Utc;
+use edge_auto_scaler::cloud_provider;
 use edge_auto_scaler::cloud_provider::{CloudNodeInfo, CloudProvider, FileCloudProvider};
 use edge_auto_scaler::config::load_config;
 use edge_auto_scaler::dns_provider::DnsProvider;
@@ -73,18 +74,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logging()?;
     let config = load_config()?;
 
-    let stream_factory = build_stream_factory_from_config(config)?;
+    let stream_factory = build_stream_factory_from_config(Arc::clone(&config))?;
+    let cloud_provider = cloud_provider::build_from_config(Arc::clone(&config))?;
 
     let node_discovery_provider = spawn_actor(MockNodeDiscovery);
-    let cloud_provider = spawn_actor(FileCloudProvider::new(
-        "test_files/node_exploration",
-        "test_files/node_discovery",
-    ));
     let dns_provider = spawn_actor(MockDnsProvider);
 
     let node_groups_controller = spawn_actor(NodeGroupsController::new(
         upcast!(node_discovery_provider),
-        upcast!(cloud_provider),
+        cloud_provider,
         upcast!(dns_provider),
         stream_factory.clone(),
         // Arc::new(vec![
