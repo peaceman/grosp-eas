@@ -48,6 +48,20 @@ pub enum NodeDrainingCause {
     Termination,
 }
 
+impl fmt::Display for NodeDrainingCause {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                NodeDrainingCause::Scaling => "scaling",
+                NodeDrainingCause::RollingUpdate => "rollingupdate",
+                NodeDrainingCause::Termination => "termination",
+            }
+        )
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum NodeState {
     Unready,

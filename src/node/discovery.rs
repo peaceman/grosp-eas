@@ -14,6 +14,7 @@ use tracing::{error, info};
 
 use crate::consul::health::ServiceEntry;
 pub use provider::NodeDiscoveryProvider;
+use std::fmt;
 
 #[async_trait]
 pub trait NodeDiscoveryObserver: Actor {
@@ -32,6 +33,20 @@ pub enum NodeDiscoveryState {
     Ready,
     Active,
     Draining(NodeDrainingCause),
+}
+
+impl fmt::Display for NodeDiscoveryState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                NodeDiscoveryState::Ready => "ready".into(),
+                NodeDiscoveryState::Active => "active".into(),
+                NodeDiscoveryState::Draining(cause) => format!("draining-{}", cause.to_string()),
+            }
+        )
+    }
 }
 
 pub struct NodeDiscovery {

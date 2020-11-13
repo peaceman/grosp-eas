@@ -1,12 +1,13 @@
-use crate::consul::catalog::Catalog;
+use crate::consul::catalog::{Catalog, CatalogRegistration};
 use crate::consul::health::{Health, ServiceEntry};
 use crate::consul::Client as ConsulClient;
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState};
 use crate::node::NodeDrainingCause::{RollingUpdate, Scaling, Termination};
 use crate::node::NodeState;
 use act_zero::{Actor, ActorResult, Addr, Produces};
+use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use opentelemetry::api::trace::span::SpanKind::Producer;
+use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -24,6 +25,23 @@ impl ConsulNodeDiscovery {
             consul,
             service_name,
         }
+    }
+
+    async fn find_service_definition(&self, hostname: &str) -> Result<ServiceEntry> {
+        let mut params = HashMap::new();
+        params.insert(
+            "filter".to_owned(),
+            format!("Node.Node == \"{}\"", hostname),
+        );
+
+        let (mut services, _meta) = self
+            .consul
+            .service(&self.service_name, None, true, Some(params), None)
+            .await?;
+
+        services
+            .pop()
+            .ok_or_else(|| anyhow!("Failed to find service definition"))
     }
 }
 
@@ -50,7 +68,30 @@ impl NodeDiscoveryProvider for ConsulNodeDiscovery {
         hostname: String,
         state: NodeDiscoveryState,
     ) -> ActorResult<()> {
-        unimplemented!()
+        let service_entry = self.find_service_definition(&hostname).await?;
+        let mut service = service_entry.Service;
+
+        let mut tags = service.Tags.clone().unwrap_or_else(|| vec![]);
+        tags.retain(|t| !is_state_tag(t));
+        tags.push(state.to_string());
+
+        service.Tags = Some(tags);
+
+        let registration = CatalogRegistration {
+            ID: service_entry.Node.ID,
+            Node: service_entry.Node.Node,
+            Address: service_entry.Node.Address,
+            TaggedAddresses: HashMap::new(),
+            NodeMeta: HashMap::new(),
+            Datacenter: service_entry.Node.Datacenter.unwrap_or_default(),
+            Service: Some(service),
+            Check: None,
+            SkipNodeUpdate: true,
+        };
+
+        self.consul.register(&registration, None).await?;
+
+        Produces::ok(())
     }
 
     #[tracing::instrument(name = "ConsulNodeDiscovery::discover_nodes", skip(self))]
@@ -109,7 +150,7 @@ impl TryFrom<ServiceEntry> for NodeDiscoveryData {
 
 fn parse_node_state_from_tags(tags: &Vec<String>) -> Option<NodeDiscoveryState> {
     tags.iter().find_map(|tag| {
-        if !tag.starts_with("state=") {
+        if !is_state_tag(tag) {
             None
         } else {
             let parts: Vec<&str> = tag.splitn(2, "=").collect();
@@ -119,6 +160,10 @@ fn parse_node_state_from_tags(tags: &Vec<String>) -> Option<NodeDiscoveryState> 
                 .and_then(|state| -> Option<NodeDiscoveryState> { state.parse().ok() })
         }
     })
+}
+
+fn is_state_tag(s: &str) -> bool {
+    s.starts_with("state=")
 }
 
 impl FromStr for NodeDiscoveryState {
