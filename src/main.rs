@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use edge_auto_scaler::cloud_provider::{CloudNodeInfo, CloudProvider, FileCloudProvider};
 use edge_auto_scaler::config::load_config;
+use edge_auto_scaler::consul::health::Health;
 use edge_auto_scaler::dns_provider::DnsProvider;
 use edge_auto_scaler::node::discovery::{
     NodeDiscovery, NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState,
@@ -16,7 +17,7 @@ use edge_auto_scaler::node::stats::{
 use edge_auto_scaler::node::{NodeController, NodeDrainingCause, NodeStats};
 use edge_auto_scaler::node_groups::discovery::{FileNodeGroupDiscovery, NodeGroupDiscovery};
 use edge_auto_scaler::node_groups::NodeGroupsController;
-use edge_auto_scaler::{cloud_provider, dns_provider, node, node_groups};
+use edge_auto_scaler::{cloud_provider, consul, dns_provider, node, node_groups};
 use env_logger::Env;
 use futures::task::Context;
 use opentelemetry::api::Provider;
@@ -72,6 +73,17 @@ fn init_logging() -> Result<(), Box<dyn std::error::Error>> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logging()?;
+
+    let consul_client = consul::Client::new(
+        consul::Config::builder()
+            .address("http://127.0.0.1:8500".into())
+            .build()?,
+    )?;
+
+    let services = consul_client.service("edge", None, true, None).await?;
+
+    println!("{:?}", services);
+
     let config = load_config()?;
 
     let stream_factory = build_stream_factory_from_config(Arc::clone(&config))?;

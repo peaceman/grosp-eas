@@ -5,6 +5,7 @@ use tokio::stream::Stream;
 
 pub mod cloud_provider;
 pub mod config;
+pub mod consul;
 pub mod dns_provider;
 pub mod node;
 pub mod node_groups;
