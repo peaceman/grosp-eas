@@ -4,6 +4,8 @@ use async_trait::async_trait;
 use chrono::Utc;
 use edge_auto_scaler::cloud_provider::{CloudNodeInfo, CloudProvider, FileCloudProvider};
 use edge_auto_scaler::config::load_config;
+use edge_auto_scaler::consul::agent::AgentService;
+use edge_auto_scaler::consul::catalog::{Catalog, CatalogRegistration};
 use edge_auto_scaler::consul::health::Health;
 use edge_auto_scaler::dns_provider::DnsProvider;
 use edge_auto_scaler::node::discovery::{
@@ -23,6 +25,8 @@ use futures::task::Context;
 use opentelemetry::api::Provider;
 use opentelemetry::sdk;
 use rand::Rng;
+use std::collections::HashMap;
+use std::iter::FromIterator;
 use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -74,15 +78,54 @@ fn init_logging() -> Result<(), Box<dyn std::error::Error>> {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logging()?;
 
-    let consul_client = consul::Client::new(
-        consul::Config::builder()
-            .address("http://127.0.0.1:8500".into())
-            .build()?,
-    )?;
-
-    let services = consul_client.service("edge", None, true, None).await?;
-
-    println!("{:?}", services);
+    // let consul_client = consul::Client::new(
+    //     consul::Config::builder()
+    //         .address("http://127.0.0.1:8500".into())
+    //         .build()?,
+    // )?;
+    //
+    // let (services, meta) = consul_client
+    //     .service(
+    //         "edge",
+    //         None,
+    //         true,
+    //         Some(
+    //             vec![(
+    //                 "filter".to_owned(),
+    //                 "Node.Node == \"peaceDesk2k20.local\"".to_owned(),
+    //             )]
+    //             .into_iter()
+    //             .collect(),
+    //         ),
+    //         None,
+    //     )
+    //     .await?;
+    //
+    // let service_entry = services.first().unwrap();
+    // let mut service = service_entry.Service.clone();
+    // service.Tags = service.Tags.or(Some(vec![])).map(|mut t| {
+    //     t.push("foo=bar".into());
+    //     t
+    // });
+    //
+    // println!("{:?}", service);
+    //
+    // let registration = CatalogRegistration {
+    //     ID: service_entry.Node.ID.clone(),
+    //     Node: service_entry.Node.Node.clone(),
+    //     Address: service_entry.Node.Address.clone(),
+    //     TaggedAddresses: HashMap::new(),
+    //     NodeMeta: HashMap::new(),
+    //     Datacenter: service_entry.Node.Datacenter.clone().unwrap_or_default(),
+    //     Service: Some(service),
+    //     Check: None,
+    //     SkipNodeUpdate: true,
+    // };
+    //
+    // println!("{:?}", service_entry);
+    // consul_client.register(&registration, None).await;
+    //
+    // return Ok(());
 
     let config = load_config()?;
 

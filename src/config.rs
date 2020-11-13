@@ -43,7 +43,13 @@ pub struct NodeStatsNSSTLS {
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum NodeDiscoveryProvider {
     Mock,
-    File { path: String },
+    File {
+        path: String,
+    },
+    Consul {
+        service_name: String,
+        address: String,
+    },
 }
 
 #[derive(Deserialize)]

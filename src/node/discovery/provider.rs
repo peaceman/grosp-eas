@@ -1,3 +1,4 @@
+mod consul;
 mod file;
 mod mock;
 
@@ -24,6 +25,20 @@ pub fn build_from_config(config: AppConfig) -> anyhow::Result<Addr<dyn NodeDisco
         config::NodeDiscoveryProvider::Mock => upcast!(spawn_actor(mock::MockNodeDiscovery)),
         config::NodeDiscoveryProvider::File { path } => {
             upcast!(spawn_actor(file::FileNodeDiscovery::new(path)))
+        }
+        config::NodeDiscoveryProvider::Consul {
+            service_name,
+            address,
+        } => {
+            let consul_client = crate::consul::Client::new(
+                crate::consul::Config::builder()
+                    .address(address.into())
+                    .build()?,
+            )?;
+
+            let provider = consul::ConsulNodeDiscovery::new(consul_client, service_name.into());
+
+            upcast!(spawn_actor(provider))
         }
     })
 }
