@@ -1,4 +1,5 @@
-mod agent;
+pub mod agent;
+pub mod catalog;
 pub mod health;
 mod request;
 
@@ -71,5 +72,15 @@ pub struct QueryOptions {
 #[derive(Clone, Debug)]
 pub struct QueryMeta {
     pub last_index: Option<u64>,
+    pub request_time: Duration,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct WriteOptions {
+    pub datacenter: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub struct WriteMeta {
     pub request_time: Duration,
 }

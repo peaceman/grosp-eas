@@ -51,6 +51,7 @@ pub trait Health {
         service: &str,
         tag: Option<&str>,
         passing_only: bool,
+        params: Option<HashMap<String, String>>,
         options: Option<&QueryOptions>,
     ) -> Result<(Vec<ServiceEntry>, QueryMeta)>;
 }
@@ -62,9 +63,11 @@ impl Health for Client {
         service: &str,
         tag: Option<&str>,
         passing_only: bool,
+        params: Option<HashMap<String, String>>,
         options: Option<&QueryOptions>,
     ) -> Result<(Vec<ServiceEntry>, QueryMeta)> {
-        let mut params = HashMap::new();
+        let mut params = params.unwrap_or_default();
+
         if passing_only {
             params.insert("passing".into(), "1".into());
         }
