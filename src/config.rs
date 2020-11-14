@@ -89,6 +89,7 @@ pub enum DnsProvider {
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum NodeGroupDiscoveryProvider {
     File { path: String },
+    Consul { key_prefix: String, address: String },
 }
 
 pub fn load_config() -> anyhow::Result<AppConfig> {
