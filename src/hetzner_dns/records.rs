@@ -1,6 +1,5 @@
-use crate::hetzner_dns::request::get_list;
-use crate::hetzner_dns::{Client, PaginationMeta};
-use anyhow::{Context, Result};
+use crate::hetzner_dns::request::{get_list, post};
+use crate::hetzner_dns::{Client, PaginationMeta, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -9,16 +8,19 @@ use std::collections::HashMap;
 pub struct Record {
     #[serde(rename = "type")]
     pub record_type: String,
-    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
     pub zone_id: String,
     pub name: String,
     pub value: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ttl: Option<u64>,
 }
 
 #[async_trait]
 pub trait Records {
     async fn get_all_records(&self, zone_id: &str) -> Result<Vec<Record>>;
+    async fn create_record(&self, record: &Record) -> Result<()>;
 }
 
 #[async_trait]
@@ -39,5 +41,17 @@ impl Records for Client {
         .await?;
 
         Ok(records)
+    }
+
+    async fn create_record(&self, record: &Record) -> Result<()> {
+        let path = "/api/v1/records";
+        post(
+            &self.http_client,
+            &self.config,
+            path,
+            record,
+            HashMap::new(),
+        )
+        .await
     }
 }

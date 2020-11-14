@@ -1,8 +1,8 @@
+pub mod error;
 pub mod records;
 mod request;
 pub mod zones;
 
-use anyhow::{Context, Result};
 use reqwest::ClientBuilder;
 use serde::{Deserialize, Serialize};
 
@@ -42,10 +42,12 @@ impl Builder {
     }
 
     pub fn build(self) -> Result<Client> {
+        use error::Error::*;
+
         Ok(Client {
             config: Config {
-                address: self.address.with_context(|| "Missing address")?,
-                api_token: self.api_token.with_context(|| "Missing api token")?,
+                address: self.address.ok_or(MissingConfig("address"))?,
+                api_token: self.api_token.ok_or(MissingConfig("api_token"))?,
             },
             http_client: ClientBuilder::new().build()?,
         })
@@ -66,4 +68,4 @@ pub struct PaginationMeta {
     pub total_entries: u64,
 }
 
-use request::get_list;
+pub type Result<T> = std::result::Result<T, error::Error>;
