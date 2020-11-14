@@ -1,5 +1,6 @@
 use crate::consul::{Config, QueryMeta, QueryOptions, WriteMeta, WriteOptions};
 use anyhow::{anyhow, Context, Result};
+use http::StatusCode;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Client as HttpClient, RequestBuilder, Url};
 use serde::de::DeserializeOwned;
@@ -30,6 +31,43 @@ pub async fn get<R: DeserializeOwned>(
         .json()
         .await
         .with_context(|| "Failed to parse JSON response")?;
+
+    Ok((
+        json,
+        QueryMeta {
+            last_index: consul_index,
+            request_time: Instant::now() - start,
+        },
+    ))
+}
+
+pub async fn get_vec<R: DeserializeOwned>(
+    http_client: &HttpClient,
+    config: &Config,
+    path: &str,
+    mut params: HashMap<String, String>,
+    options: Option<&QueryOptions>,
+) -> Result<(Vec<R>, QueryMeta)> {
+    params.fill(config, options);
+
+    let url = format!("{}{}", config.address, path);
+    let url = Url::parse_with_params(&url, params.iter())
+        .with_context(|| format!("Failed to parse URL: {}", url))?;
+
+    let request_builder = http_client.get(url);
+    let start = Instant::now();
+    let response = request_builder.send().await?;
+
+    let consul_index = parse_consul_index(response.headers())?;
+
+    let json = if response.status() != StatusCode::NOT_FOUND {
+        response
+            .json()
+            .await
+            .with_context(|| "Failed to parse JSON response")?
+    } else {
+        vec![]
+    };
 
     Ok((
         json,
