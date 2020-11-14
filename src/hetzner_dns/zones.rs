@@ -23,7 +23,7 @@ impl Zones for Client {
         params.insert(String::from("name"), String::from(name));
 
         let path = format!("/api/v1/zones");
-        let (mut zones, _pagination_meta): (Vec<Zone>, PaginationMeta) = get_list(
+        let (mut zones, _pagination_meta): (Vec<Zone>, _) = get_list(
             &self.http_client,
             &self.config,
             &path,

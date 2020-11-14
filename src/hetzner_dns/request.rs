@@ -14,7 +14,7 @@ pub(in crate::hetzner_dns) async fn get_list<R: DeserializeOwned>(
     content_json_path: &str,
     mut params: HashMap<String, String>,
     pagination: Option<PaginationParams>,
-) -> Result<(Vec<R>, PaginationMeta)> {
+) -> Result<(Vec<R>, Option<PaginationMeta>)> {
     if let Some(pagination) = pagination.as_ref() {
         params.paginate(pagination);
     }
@@ -34,14 +34,10 @@ pub(in crate::hetzner_dns) async fn get_list<R: DeserializeOwned>(
         .await
         .with_context(|| "Failed to parse JSON response")?;
 
-    let pagination: PaginationMeta = match json.pointer_mut("/meta/pagination") {
+    let pagination: Option<PaginationMeta> = match json.pointer_mut("/meta/pagination") {
         Some(json_pagination) => serde_json::from_value(json_pagination.take())
             .with_context(|| "Failed to parse pagination json")?,
-        None => {
-            return Err(anyhow!(
-                "Failed to fetch pagination meta json from response"
-            ))
-        }
+        None => None,
     };
 
     let data: Vec<R> = match json.pointer_mut(content_json_path) {

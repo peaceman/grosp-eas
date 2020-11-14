@@ -1,3 +1,4 @@
+pub mod records;
 mod request;
 pub mod zones;
 
