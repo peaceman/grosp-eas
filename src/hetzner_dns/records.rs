@@ -1,4 +1,4 @@
-use crate::hetzner_dns::request::{get_list, post};
+use crate::hetzner_dns::request::{delete, get_list, post};
 use crate::hetzner_dns::{Client, PaginationMeta, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -21,6 +21,7 @@ pub struct Record {
 pub trait Records {
     async fn get_all_records(&self, zone_id: &str) -> Result<Vec<Record>>;
     async fn create_record(&self, record: &Record) -> Result<()>;
+    async fn delete_record(&self, record_id: &str) -> Result<()>;
 }
 
 #[async_trait]
@@ -53,5 +54,10 @@ impl Records for Client {
             HashMap::new(),
         )
         .await
+    }
+
+    async fn delete_record(&self, record_id: &str) -> Result<()> {
+        let path = format!("/api/v1/records/{}", record_id);
+        delete(&self.http_client, &self.config, &path, HashMap::new()).await
     }
 }

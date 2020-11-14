@@ -8,7 +8,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::time::Instant;
 
-pub(in crate::hetzner_dns) async fn get_list<R: DeserializeOwned>(
+pub(super) async fn get_list<R: DeserializeOwned>(
     http_client: &reqwest::Client,
     config: &Config,
     path: &str,
@@ -56,6 +56,30 @@ pub(super) async fn post<T: Serialize>(
         .with_auth(config)
         .header(ACCEPT, "application/json")
         .json(content);
+
+    let response = request_builder.send().await?;
+
+    if !response.status().is_success() {
+        return Err(Error::BadResponse {
+            headers: response.headers().clone(),
+            body: response.text().await?,
+        });
+    }
+
+    Ok(())
+}
+
+pub(super) async fn delete(
+    http_client: &reqwest::Client,
+    config: &Config,
+    path: &str,
+    mut params: HashMap<String, String>,
+) -> Result<()> {
+    let url = gen_url(config, path, &params)?;
+    let request_builder = http_client
+        .delete(url)
+        .with_auth(config)
+        .header(ACCEPT, "application/json");
 
     let response = request_builder.send().await?;
 
