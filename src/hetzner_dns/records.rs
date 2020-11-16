@@ -8,8 +8,18 @@ use std::collections::HashMap;
 pub struct Record {
     #[serde(rename = "type")]
     pub record_type: String,
+    pub id: String,
+    pub zone_id: String,
+    pub name: String,
+    pub value: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<String>,
+    pub ttl: Option<u64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NewRecord {
+    #[serde(rename = "type")]
+    pub record_type: String,
     pub zone_id: String,
     pub name: String,
     pub value: String,
@@ -20,7 +30,7 @@ pub struct Record {
 #[async_trait]
 pub trait Records {
     async fn get_all_records(&self, zone_id: &str) -> Result<Vec<Record>>;
-    async fn create_record(&self, record: &Record) -> Result<()>;
+    async fn create_record(&self, record: &NewRecord) -> Result<Record>;
     async fn delete_record(&self, record_id: &str) -> Result<()>;
 }
 
@@ -44,13 +54,14 @@ impl Records for Client {
         Ok(records)
     }
 
-    async fn create_record(&self, record: &Record) -> Result<()> {
+    async fn create_record(&self, record: &NewRecord) -> Result<Record> {
         let path = "/api/v1/records";
         post(
             &self.http_client,
             &self.config,
             path,
             record,
+            Some("/record"),
             HashMap::new(),
         )
         .await

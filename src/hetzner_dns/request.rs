@@ -12,7 +12,7 @@ pub(super) async fn get_list<R: DeserializeOwned>(
     http_client: &reqwest::Client,
     config: &Config,
     path: &str,
-    content_json_path: &str,
+    result_json_path: &str,
     mut params: HashMap<String, String>,
     pagination: Option<PaginationParams>,
 ) -> Result<(Vec<R>, Option<PaginationMeta>)> {
@@ -35,22 +35,23 @@ pub(super) async fn get_list<R: DeserializeOwned>(
         None => None,
     };
 
-    let data: Vec<R> = match parse_at_pointer(&mut json, content_json_path) {
+    let data: Vec<R> = match parse_at_pointer(&mut json, result_json_path) {
         Some(v) => v,
-        None => return Err(Error::MissingResponseValue(content_json_path.to_owned())),
+        None => return Err(Error::MissingResponseValue(result_json_path.to_owned())),
     }?;
 
     Ok((data, pagination))
 }
 
-pub(super) async fn post<T: Serialize>(
+pub(super) async fn post<T: Serialize, R: DeserializeOwned>(
     http_client: &reqwest::Client,
     config: &Config,
-    path: &str,
+    url_path: &str,
     content: &T,
+    result_json_path: Option<&str>,
     mut params: HashMap<String, String>,
-) -> Result<()> {
-    let url = gen_url(config, path, &params)?;
+) -> Result<R> {
+    let url = gen_url(config, url_path, &params)?;
     let request_builder = http_client
         .post(url)
         .with_auth(config)
@@ -66,7 +67,14 @@ pub(super) async fn post<T: Serialize>(
         });
     }
 
-    Ok(())
+    let mut json: Value = response.json().await?;
+    let result_json_path = result_json_path.unwrap_or("/");
+    let data: R = match parse_at_pointer(&mut json, result_json_path) {
+        Some(v) => v,
+        None => return Err(Error::MissingResponseValue(result_json_path.to_owned())),
+    }?;
+
+    Ok(data)
 }
 
 pub(super) async fn delete(
