@@ -2,14 +2,14 @@ use crate::dns_provider::DnsProvider;
 use crate::hetzner_dns::records::{NewRecord, Record, Records};
 use crate::hetzner_dns::zones::{Zone, Zones};
 use crate::hetzner_dns::Client;
-use act_zero::{Actor, ActorResult, Addr, Produces};
+use act_zero::{Actor, ActorError, ActorResult, Addr, Produces};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use record_store::RecordStore;
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::rc::{Rc, Weak};
-use tracing::info;
+use tracing::{error, info};
 
 pub struct HetznerDnsProvider {
     client: Client,
@@ -20,19 +20,24 @@ pub struct HetznerDnsProvider {
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    zone_apex: String,
-    record_ttl: u64,
+    pub zone_apex: String,
+    pub record_ttl: u64,
 }
 
 #[async_trait]
 impl Actor for HetznerDnsProvider {
-    #[tracing::instrument(name = "HetznerDnsProvider::started", skip(self))]
+    #[tracing::instrument(name = "HetznerDnsProvider::started", skip(self, _addr))]
     async fn started(&mut self, _addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
     {
         info!("Started");
         Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        error!(error = format!("{:?}", error).as_str());
+        false
     }
 }
 
@@ -55,6 +60,7 @@ impl DnsProvider for HetznerDnsProvider {
             let record_type = record_type(&ip);
 
             for record in self.records.get(record_name, record_type) {
+                info!(record = format!("{:?}", *record).as_str(), "Delete record");
                 self.client.delete_record(&record.id).await?;
                 self.records.remove(record.as_ref());
             }
@@ -68,6 +74,7 @@ impl DnsProvider for HetznerDnsProvider {
                 ttl: Some(self.config.record_ttl),
             };
 
+            info!(record = format!("{:?}", record).as_str(), "Create record");
             let record = self.client.create_record(&record).await?;
             self.records.add(record);
         }
@@ -77,7 +84,24 @@ impl DnsProvider for HetznerDnsProvider {
 
     #[tracing::instrument(name = "HetznerDnsProvider::delete_records", skip(self))]
     async fn delete_records(&mut self, hostname: String) -> ActorResult<()> {
-        unimplemented!()
+        {
+            self.fetch_zone_if_missing().await?;
+            let zone = self.zone.as_ref().unwrap();
+            if self.records.is_empty() {
+                load_records(&self.client, zone, &mut self.records).await?;
+            }
+        }
+
+        let record_name = self.gen_record_name(&hostname)?;
+        for record_type in ["A", "AAAA"].iter() {
+            for record in self.records.get(record_name, record_type) {
+                info!(record = format!("{:?}", *record).as_str(), "Delete record");
+                self.client.delete_record(&record.id).await?;
+                self.records.remove(record.as_ref());
+            }
+        }
+
+        Produces::ok(())
     }
 }
 
@@ -121,7 +145,7 @@ impl HetznerDnsProvider {
     }
 
     fn gen_record_name<'a>(&self, full: &'a str) -> Result<&'a str> {
-        match full.strip_suffix(&self.config.zone_apex) {
+        match full.strip_suffix(format!(".{}", &self.config.zone_apex).as_str()) {
             Some(name) => Ok(name),
             None => Err(anyhow!(
                 "Failed to remove zone apex {}",
