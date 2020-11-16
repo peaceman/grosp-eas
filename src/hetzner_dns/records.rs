@@ -16,13 +16,13 @@ pub struct Record {
     pub ttl: Option<u64>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct NewRecord {
+#[derive(Clone, Debug, Serialize)]
+pub struct NewRecord<'a> {
     #[serde(rename = "type")]
-    pub record_type: String,
-    pub zone_id: String,
-    pub name: String,
-    pub value: String,
+    pub record_type: &'a str,
+    pub zone_id: &'a str,
+    pub name: &'a str,
+    pub value: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ttl: Option<u64>,
 }
@@ -30,7 +30,7 @@ pub struct NewRecord {
 #[async_trait]
 pub trait Records {
     async fn get_all_records(&self, zone_id: &str) -> Result<Vec<Record>>;
-    async fn create_record(&self, record: &NewRecord) -> Result<Record>;
+    async fn create_record(&self, record: &NewRecord<'_>) -> Result<Record>;
     async fn delete_record(&self, record_id: &str) -> Result<()>;
 }
 
@@ -54,7 +54,7 @@ impl Records for Client {
         Ok(records)
     }
 
-    async fn create_record(&self, record: &NewRecord) -> Result<Record> {
+    async fn create_record(&self, record: &NewRecord<'_>) -> Result<Record> {
         let path = "/api/v1/records";
         post(
             &self.http_client,

@@ -59,11 +59,12 @@ impl DnsProvider for HetznerDnsProvider {
                 self.records.remove(record.as_ref());
             }
 
+            let ip_string = ip.to_string();
             let record = NewRecord {
-                record_type: record_type.to_owned(),
-                zone_id: zone.id.clone(),
-                name: record_name.to_owned(),
-                value: ip.to_string(),
+                record_type,
+                zone_id: &zone.id,
+                name: record_name,
+                value: &ip_string,
                 ttl: Some(self.config.record_ttl),
             };
 
