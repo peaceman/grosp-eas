@@ -83,6 +83,12 @@ pub enum CloudProvider {
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum DnsProvider {
     Mock,
+    Hetzner {
+        zone_apex: String,
+        record_ttl: u64,
+        api_token: String,
+        address: String,
+    },
 }
 
 #[derive(Deserialize)]
