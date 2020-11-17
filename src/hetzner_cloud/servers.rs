@@ -1,5 +1,5 @@
 use super::Result;
-use crate::hetzner_cloud::request::get_list;
+use crate::hetzner_cloud::request::{get_list, post};
 use crate::hetzner_cloud::{Client, PaginationMeta, PaginationParams};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -42,7 +42,7 @@ pub struct Ipv6Ptr {
     pub dns_ptr: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct NewServer<'a> {
     pub name: &'a str,
     pub server_type: &'a str,
@@ -50,11 +50,14 @@ pub struct NewServer<'a> {
     pub ssh_keys: Vec<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_data: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub labels: Option<&'a HashMap<String, String>>,
 }
 
 #[async_trait]
 pub trait Servers {
     async fn get_all_servers(&self, label_selector: Option<&str>) -> Result<Vec<Server>>;
+    async fn create_server(&self, server: &NewServer<'_>) -> Result<Server>;
 }
 
 #[async_trait]
@@ -97,6 +100,18 @@ impl Servers for Client {
         }
 
         Ok(all_servers.unwrap_or_default())
+    }
+
+    async fn create_server(&self, server: &NewServer<'_>) -> Result<Server> {
+        post(
+            &self.http_client,
+            &self.config,
+            "/v1/servers",
+            server,
+            Some("/server"),
+            HashMap::new(),
+        )
+        .await
     }
 }
 
