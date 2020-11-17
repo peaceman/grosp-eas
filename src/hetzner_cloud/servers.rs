@@ -1,5 +1,5 @@
 use super::Result;
-use crate::hetzner_cloud::request::{get_list, post};
+use crate::hetzner_cloud::request::{delete, get_list, post};
 use crate::hetzner_cloud::{Client, PaginationMeta, PaginationParams};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -58,6 +58,7 @@ pub struct NewServer<'a> {
 pub trait Servers {
     async fn get_all_servers(&self, label_selector: Option<&str>) -> Result<Vec<Server>>;
     async fn create_server(&self, server: &NewServer<'_>) -> Result<Server>;
+    async fn delete_server(&self, server_id: u64) -> Result<()>;
 }
 
 #[async_trait]
@@ -112,6 +113,12 @@ impl Servers for Client {
             HashMap::new(),
         )
         .await
+    }
+
+    async fn delete_server(&self, server_id: u64) -> Result<()> {
+        let path = format!("/v1/servers/{}", server_id);
+
+        delete(&self.http_client, &self.config, &path, HashMap::new()).await
     }
 }
 
