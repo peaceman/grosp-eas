@@ -59,6 +59,7 @@ pub trait Servers {
     async fn get_all_servers(&self, label_selector: Option<&str>) -> Result<Vec<Server>>;
     async fn create_server(&self, server: &NewServer<'_>) -> Result<Server>;
     async fn delete_server(&self, server_id: u64) -> Result<()>;
+    async fn search_server(&self, hostname: &str) -> Result<Option<Server>>;
 }
 
 #[async_trait]
@@ -101,6 +102,28 @@ impl Servers for Client {
         }
 
         Ok(all_servers.unwrap_or_default())
+    }
+
+    async fn search_server(&self, hostname: &str) -> Result<Option<Server>> {
+        let mut params = HashMap::new();
+        params.insert(String::from("name"), String::from(hostname));
+
+        let pagination_params = PaginationParams {
+            page: 1,
+            per_page: 25,
+        };
+
+        let (mut servers, _): (Vec<Server>, _) = get_list(
+            &self.http_client,
+            &self.config,
+            "/v1/servers",
+            "/servers",
+            params.clone(),
+            Some(&pagination_params),
+        )
+        .await?;
+
+        Ok(servers.pop())
     }
 
     async fn create_server(&self, server: &NewServer<'_>) -> Result<Server> {
