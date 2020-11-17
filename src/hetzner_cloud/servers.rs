@@ -42,6 +42,16 @@ pub struct Ipv6Ptr {
     pub dns_ptr: String,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NewServer<'a> {
+    pub name: &'a str,
+    pub server_type: &'a str,
+    pub image: &'a str,
+    pub ssh_keys: Vec<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_data: Option<&'a str>,
+}
+
 #[async_trait]
 pub trait Servers {
     async fn get_all_servers(&self, label_selector: Option<&str>) -> Result<Vec<Server>>;
