@@ -1,11 +1,7 @@
-use crate::node::discovery::{
-    NodeDiscoveryData, NodeDiscoveryObserver, NodeDiscoveryProvider, NodeDiscoveryState,
-};
+use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState};
 use crate::utils;
 use crate::utils::path_append;
-use act_zero::runtimes::tokio::Timer;
-use act_zero::timer::Tick;
-use act_zero::{send, Actor, ActorResult, Addr, Produces, WeakAddr};
+use act_zero::{Actor, ActorResult, Addr, Produces, WeakAddr};
 use anyhow::Context;
 use async_trait::async_trait;
 use futures::TryFutureExt;
@@ -13,7 +9,6 @@ use std::fmt;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 use tracing::{error, info};
 
 pub struct FileNodeDiscovery {

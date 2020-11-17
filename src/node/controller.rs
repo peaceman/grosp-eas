@@ -4,19 +4,15 @@ mod stats_streamer;
 
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
 use crate::dns_provider::DnsProvider;
-use crate::node::controller::state_machine::{Data, Draining, NodeMachine, NodeMachineEvent};
+use crate::node::controller::state_machine::{NodeMachine, NodeMachineEvent};
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState};
-use crate::node::{
-    Node, NodeDrainingCause, NodeState, NodeStateInfo, NodeStateObserver, NodeStats,
-    NodeStatsObserver,
-};
+use crate::node::{Node, NodeDrainingCause, NodeStateObserver, NodeStatsObserver};
 use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
-use act_zero::{call, send, Actor, ActorResult, Addr, AddrLike, Produces, WeakAddr};
+use act_zero::{send, Actor, ActorResult, Addr, Produces, WeakAddr};
 use async_trait::async_trait;
 use std::fmt;
 use std::time::Duration;
-use tokio::stream::{Stream, StreamExt};
 use tracing::info;
 
 use crate::node::stats::NodeStatsStreamFactory;

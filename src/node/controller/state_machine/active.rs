@@ -1,9 +1,7 @@
 use super::*;
 
-use crate::node::controller::stats_streamer::StatsStreamer;
 use crate::node::discovery::NodeDiscoveryState;
 use act_zero::call;
-use act_zero::runtimes::tokio::spawn_actor;
 use tracing::error;
 
 impl MachineState for Active {}

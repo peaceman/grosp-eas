@@ -1,4 +1,4 @@
-use crate::consul::request::{get, get_vec};
+use crate::consul::request::get_vec;
 use crate::consul::{Client, QueryMeta, QueryOptions};
 use anyhow::Result;
 use async_trait::async_trait;

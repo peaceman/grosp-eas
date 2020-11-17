@@ -1,6 +1,6 @@
 use super::*;
 use crate::node::discovery::NodeDiscoveryState;
-use act_zero::{call, send};
+use act_zero::call;
 use tracing::error;
 
 impl MachineState for Provisioning {}
@@ -53,7 +53,7 @@ impl Data<Provisioning> {
             >= self.shared.config.provisioning_timeout
     }
 
-    async fn provision_node(mut self) -> NodeMachine {
+    async fn provision_node(self) -> NodeMachine {
         info!("Provision node");
 
         match self.state.node_info.as_ref() {
@@ -101,8 +101,8 @@ impl Data<Provisioning> {
 
         if let Err(e) = create_records_result {
             error!(
-                "Failed to create dns records; addresses {:?}",
-                node_info.ip_addresses
+                "Failed to create dns records; addresses {:?}; error {:?}",
+                node_info.ip_addresses, e
             );
         }
 

@@ -2,14 +2,11 @@ use crate::node::stats::NodeStatsStreamFactory;
 use crate::node::NodeStats;
 use async_stream::stream;
 use http::Uri;
-use std::future::Future;
 use std::pin::Pin;
-use std::task::{Context, Poll};
 use std::time::Duration;
 use tokio::stream::Stream;
-use tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint, Error, Identity};
+use tonic::transport::{Certificate, Channel, ClientTlsConfig, Identity};
 use tracing::error;
-use tracing::info;
 use tracing_futures::Instrument;
 
 pub mod grpc {

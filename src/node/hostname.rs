@@ -17,7 +17,7 @@ fn generate_random_part() -> String {
     let mut rng = rand::thread_rng();
 
     let mut hostname = String::with_capacity(8);
-    for i in 0..8 {
+    for _i in 0..8 {
         hostname.push(charset[rng.gen_range(0, charset.len())]);
     }
 
@@ -29,7 +29,7 @@ impl HostnameGenerator for Vec<&str> {
         use rand::prelude::*;
 
         let mut rng = rand::thread_rng();
-        let mut hostname = self[rng.gen_range(0, self.len())];
+        let hostname = self[rng.gen_range(0, self.len())];
 
         format!("{}-{}", node_group_name, hostname)
     }
@@ -40,7 +40,7 @@ impl HostnameGenerator for Vec<char> {
         use rand::prelude::*;
 
         let mut rng = rand::thread_rng();
-        let mut hostname = self[rng.gen_range(0, self.len())];
+        let hostname = self[rng.gen_range(0, self.len())];
 
         format!("{}-{}", node_group_name, hostname)
     }

@@ -18,14 +18,11 @@ use crate::node::{
     Node, NodeDrainingCause, NodeState, NodeStateInfo, NodeStateObserver, NodeStatsObserver,
 };
 use act_zero::runtimes::tokio::spawn_actor;
-use act_zero::{call, send, Addr, WeakAddr};
+use act_zero::{send, Addr, WeakAddr};
 use async_trait::async_trait;
-use std::convert::AsRef;
-use std::fmt;
 use std::string::ToString;
-use std::time::{Duration, Instant};
-use strum_macros::AsRefStr;
-use tracing::{error, info, trace};
+use std::time::Instant;
+use tracing::info;
 
 #[derive(strum_macros::Display, Debug)]
 pub enum NodeMachine {
@@ -275,16 +272,6 @@ impl NodeMachine {
         }
 
         result
-    }
-
-    async fn handle_data<T: Handler>(
-        data: T,
-        event: Option<NodeMachineEvent>,
-        node_state_observer: WeakAddr<dyn NodeStateObserver>,
-    ) -> Self {
-        let new_state = data.handle(event).await;
-        new_state.publish_node_state(&node_state_observer);
-        new_state
     }
 
     fn publish_node_state(&self, node_state_observer: &WeakAddr<dyn NodeStateObserver>) {

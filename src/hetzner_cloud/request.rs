@@ -1,12 +1,10 @@
 use crate::hetzner_cloud::{error::Error, Config, PaginationMeta, PaginationParams, Result};
-use anyhow::{anyhow, Context};
-use http::header::{ACCEPT, CONTENT_TYPE};
+use http::header::ACCEPT;
 use reqwest::{RequestBuilder, Url};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::time::Instant;
 
 pub(super) async fn get_list<R: DeserializeOwned>(
     http_client: &reqwest::Client,
@@ -49,7 +47,7 @@ pub(super) async fn post<T: Serialize, R: DeserializeOwned>(
     url_path: &str,
     content: &T,
     result_json_path: Option<&str>,
-    mut params: HashMap<String, String>,
+    params: HashMap<String, String>,
 ) -> Result<R> {
     let url = gen_url(config, url_path, &params)?;
     let request_builder = http_client
@@ -81,7 +79,7 @@ pub(super) async fn delete(
     http_client: &reqwest::Client,
     config: &Config,
     path: &str,
-    mut params: HashMap<String, String>,
+    params: HashMap<String, String>,
 ) -> Result<()> {
     let url = gen_url(config, path, &params)?;
     let request_builder = http_client

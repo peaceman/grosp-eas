@@ -9,7 +9,6 @@ use std::net::IpAddr;
 
 use crate::config;
 use crate::node::discovery::NodeDiscoveryState;
-use crate::node::NodeState;
 use crate::AppConfig;
 use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::upcast;

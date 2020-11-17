@@ -1,5 +1,4 @@
 use super::*;
-use std::time::Instant;
 
 impl MachineState for Initializing {}
 

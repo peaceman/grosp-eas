@@ -1,4 +1,4 @@
-use act_zero::{Actor, ActorResult, Produces};
+use act_zero::Actor;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -38,7 +38,7 @@ pub struct NodeStatsInfo {
 
 #[async_trait]
 pub trait NodeStatsObserver: Actor {
-    async fn observe_node_stats(&mut self, stats_info: NodeStatsInfo) {}
+    async fn observe_node_stats(&mut self, stats_info: NodeStatsInfo);
 }
 
 #[derive(Debug, Copy, Clone, Deserialize, PartialEq, Serialize)]
@@ -102,5 +102,5 @@ pub struct NodeStateInfo {
 
 #[async_trait]
 pub trait NodeStateObserver: Actor {
-    async fn observe_node_state(&mut self, state_info: NodeStateInfo) {}
+    async fn observe_node_state(&mut self, state_info: NodeStateInfo);
 }

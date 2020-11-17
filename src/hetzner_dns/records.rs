@@ -1,5 +1,5 @@
 use crate::hetzner_dns::request::{delete, get_list, post};
-use crate::hetzner_dns::{Client, PaginationMeta, Result};
+use crate::hetzner_dns::{Client, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

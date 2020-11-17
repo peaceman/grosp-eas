@@ -14,13 +14,11 @@ use act_zero::runtimes::tokio::{spawn_actor, Timer};
 use act_zero::timer::Tick;
 use act_zero::{send, upcast, Actor, ActorResult, Addr, Produces, WeakAddr};
 use async_trait::async_trait;
-use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::{info, trace};
-use tracing_futures::Instrument;
 
 pub struct NodeGroupScaler {
     node_group: NodeGroup,
@@ -263,7 +261,7 @@ impl NodeGroupScaler {
         // add currently existing ready nodes
         self.nodes
             .iter()
-            .filter(|(h, sn)| sn.state.is_ready())
+            .filter(|(_h, sn)| sn.state.is_ready())
             .for_each(|(h, _sn)| {
                 ready_nodes.insert(h);
             });
@@ -294,13 +292,13 @@ impl NodeGroupScaler {
         // check scale down locks
         self.scale_locks_spare.down.retain({
             let nodes = &self.nodes;
-            move |hostname, lock| !is_releasable_scale_lock(nodes, lock)
+            move |_hostname, lock| !is_releasable_scale_lock(nodes, lock)
         });
 
         // check scale up locks
         self.scale_locks_spare.up.retain({
             let nodes = &self.nodes;
-            move |hostname, lock| !is_releasable_scale_lock(nodes, lock)
+            move |_hostname, lock| !is_releasable_scale_lock(nodes, lock)
         });
     }
 
@@ -356,7 +354,7 @@ impl NodeGroupScaler {
         fields(group = %self.node_group.name)
     )]
     fn provision_spare_nodes(&mut self, amount: u32) {
-        for i in 0..amount {
+        for _i in 0..amount {
             match self.try_provision_new_node() {
                 Some(scale_lock) => {
                     self.scale_locks_spare
@@ -379,10 +377,10 @@ impl NodeGroupScaler {
         let ready_nodes = self
             .nodes
             .iter()
-            .filter(|(h, n)| n.state.is_ready())
+            .filter(|(_h, n)| n.state.is_ready())
             .filter({
                 let locks = &self.scale_locks_spare;
-                move |(h, n)| !locks.up.contains_key(*h) && !locks.down.contains_key(*h)
+                move |(h, _n)| !locks.up.contains_key(*h) && !locks.down.contains_key(*h)
             })
             .take(amount as usize);
 
@@ -516,7 +514,7 @@ impl NodeGroupScaler {
         let reactivatable = self
             .nodes
             .iter()
-            .find(|(k, v)| v.state.is_draining(NodeDrainingCause::Scaling));
+            .find(|(_k, v)| v.state.is_draining(NodeDrainingCause::Scaling));
 
         if reactivatable.is_none() {
             return None;
@@ -535,7 +533,7 @@ impl NodeGroupScaler {
     }
 
     fn try_activate_ready_node(&mut self) -> Option<Vec<ScaleLock>> {
-        let reactivatable = self.nodes.iter().find(|(k, v)| v.state.is_ready());
+        let reactivatable = self.nodes.iter().find(|(_k, v)| v.state.is_ready());
 
         if reactivatable.is_none() {
             return None;
@@ -605,7 +603,7 @@ impl NodeGroupScaler {
         let mut active_nodes_info = self
             .nodes
             .iter()
-            .filter(|(k, v)| v.state.is_active())
+            .filter(|(_k, v)| v.state.is_active())
             .collect::<Vec<(&String, &ScalingNode)>>();
 
         if min_active_nodes >= active_nodes_info.len() as u32 {

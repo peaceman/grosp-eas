@@ -1,6 +1,5 @@
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryState};
-use crate::node::NodeState;
 use crate::utils;
 use crate::utils::path_append;
 use act_zero::{Actor, ActorResult, Addr, Produces, WeakAddr};
@@ -120,12 +119,12 @@ impl CloudProvider for FileCloudProvider {
 
     // #[tracing::instrument(name = "FileCloudProvider::delete_node", skip(self))]
     async fn delete_node(&mut self, node_info: CloudNodeInfo) -> ActorResult<()> {
-        let delete_exploration_result = std::fs::remove_file(path_append(
+        let _delete_exploration_result = std::fs::remove_file(path_append(
             self.exploration_directory.join(&node_info.hostname),
             ".yml",
         ));
 
-        let delete_discovery_result = std::fs::remove_file(path_append(
+        let _delete_discovery_result = std::fs::remove_file(path_append(
             self.discovery_directory.join(&node_info.hostname),
             ".yml",
         ));

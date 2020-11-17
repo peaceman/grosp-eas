@@ -1,14 +1,12 @@
 use crate::dns_provider::DnsProvider;
-use crate::hetzner_dns::records::{NewRecord, Record, Records};
+use crate::hetzner_dns::records::{NewRecord, Records};
 use crate::hetzner_dns::zones::{Zone, Zones};
 use crate::hetzner_dns::Client;
 use act_zero::{Actor, ActorError, ActorResult, Addr, Produces};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use record_store::RecordStore;
-use std::collections::HashMap;
 use std::net::IpAddr;
-use std::rc::{Rc, Weak};
 use tracing::{error, info};
 
 pub struct HetznerDnsProvider {
@@ -126,21 +124,6 @@ impl HetznerDnsProvider {
                 }
                 None => Err(anyhow!("Failed to find zone {}", self.config.zone_apex)),
             },
-        }
-    }
-
-    async fn get_zone(&mut self) -> Result<&Zone> {
-        if self.zone.is_some() {
-            Ok(self.zone.as_ref().unwrap())
-        } else {
-            match self.client.search_zone(&self.config.zone_apex).await? {
-                Some(zone) => {
-                    self.zone = Some(zone);
-
-                    Ok(self.zone.as_ref().unwrap())
-                }
-                None => Err(anyhow!("Failed to find zone {}", self.config.zone_apex)),
-            }
         }
     }
 

@@ -1,6 +1,6 @@
 use crate::hetzner_dns::request::get_list;
-use crate::hetzner_dns::{Client, PaginationMeta};
-use anyhow::{Context, Result};
+use crate::hetzner_dns::Client;
+use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

@@ -2,12 +2,9 @@ use crate::consul::kv::KV;
 use crate::consul::Client;
 use crate::node_groups::discovery::provider::NodeGroupDiscoveryProvider;
 use crate::node_groups::NodeGroup;
-use act_zero::timer::Tick;
-use act_zero::{send, Actor, ActorResult, Addr, Produces, WeakAddr};
-use anyhow::anyhow;
-use anyhow::Context;
+use act_zero::{Actor, ActorResult, Addr, Produces};
 use async_trait::async_trait;
-use tracing::{info, warn, Instrument};
+use tracing::{info, warn};
 
 pub struct ConsulNodeGroupDiscovery {
     consul_client: Client,
@@ -25,8 +22,8 @@ impl ConsulNodeGroupDiscovery {
 
 #[async_trait]
 impl Actor for ConsulNodeGroupDiscovery {
-    #[tracing::instrument(name = "ConsulNodeGroupDiscovery::started", skip(self, addr))]
-    async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
+    #[tracing::instrument(name = "ConsulNodeGroupDiscovery::started", skip(self, _addr))]
+    async fn started(&mut self, _addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
     {

@@ -3,14 +3,12 @@ use crate::consul::health::{Health, ServiceEntry};
 use crate::consul::Client as ConsulClient;
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState};
 use crate::node::NodeDrainingCause::{RollingUpdate, Scaling, Termination};
-use crate::node::NodeState;
 use act_zero::{Actor, ActorResult, Addr, Produces};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
-use std::sync::Arc;
 use tracing::info;
 use tracing::warn;
 
@@ -49,9 +47,9 @@ impl ConsulNodeDiscovery {
 impl Actor for ConsulNodeDiscovery {
     #[tracing::instrument(
         name = "ConsulNodeDiscovery::started"
-        skip(self, addr),
+        skip(self, _addr),
     )]
-    async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()>
+    async fn started(&mut self, _addr: Addr<Self>) -> ActorResult<()>
     where
         Self: Sized,
     {
@@ -96,7 +94,7 @@ impl NodeDiscoveryProvider for ConsulNodeDiscovery {
 
     #[tracing::instrument(name = "ConsulNodeDiscovery::discover_nodes", skip(self))]
     async fn discover_nodes(&mut self) -> ActorResult<Vec<NodeDiscoveryData>> {
-        let (services, meta) = self
+        let (services, _meta) = self
             .consul
             .service(&self.service_name, None, true, None, None)
             .await?;

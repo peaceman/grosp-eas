@@ -1,9 +1,9 @@
 use crate::node::stats::NodeStatsStreamFactory;
-use crate::node::{NodeStateInfo, NodeStats, NodeStatsInfo, NodeStatsObserver};
-use act_zero::{call, send, Actor, ActorResult, Addr, AddrLike, Produces, WeakAddr};
+use crate::node::{NodeStatsInfo, NodeStatsObserver};
+use act_zero::{call, Actor, ActorResult, Addr, AddrLike, Produces, WeakAddr};
 use async_trait::async_trait;
-use tokio::stream::{Stream, StreamExt};
-use tracing::{info, trace};
+use tokio::stream::StreamExt;
+use tracing::{info, trace, warn};
 
 pub struct StatsStreamer {
     hostname: String,
@@ -13,6 +13,13 @@ pub struct StatsStreamer {
 
 #[async_trait]
 impl Actor for StatsStreamer {
+    #[tracing::instrument(
+        name = "StatsStreamer::started",
+        skip(self, addr),
+        fields(
+            hostname = %self.hostname
+        )
+    )]
     async fn started(&mut self, addr: Addr<Self>) -> ActorResult<()> {
         info!("Started StatsStreamer {}", self.hostname);
 
@@ -41,22 +48,27 @@ impl StatsStreamer {
         }
     }
 
+    #[tracing::instrument(name = "StatsStreamer::poll_stream", skip(addr, stats_stream_factory))]
     async fn poll_stream(
         addr: WeakAddr<dyn NodeStatsObserver>,
         hostname: String,
         stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
     ) {
         loop {
-            info!("Opening StatsStream {}", hostname);
+            info!("Opening StatsStream");
             let mut stats_stream = stats_stream_factory.create_stream(hostname.clone());
 
             while let Some(stats) = stats_stream.next().await {
-                trace!("Received node stats from stream {} {:?}", hostname, stats);
-                call!(addr.observe_node_stats(NodeStatsInfo {
+                trace!("Received node stats from stream {:?}", stats);
+                let publishing_result = call!(addr.observe_node_stats(NodeStatsInfo {
                     hostname: hostname.clone(),
                     stats,
                 }))
                 .await;
+
+                if let Err(e) = publishing_result {
+                    warn!("Failed to publish NodeStats {:?}", e)
+                }
             }
         }
     }

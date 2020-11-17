@@ -22,13 +22,13 @@ impl Actor for MockDnsProvider {
 impl DnsProvider for MockDnsProvider {
     async fn create_records(
         &mut self,
-        hostname: String,
-        ip_addresses: Vec<IpAddr>,
+        _hostname: String,
+        _ip_addresses: Vec<IpAddr>,
     ) -> ActorResult<()> {
         Produces::ok(())
     }
 
-    async fn delete_records(&mut self, hostname: String) -> ActorResult<()> {
+    async fn delete_records(&mut self, _hostname: String) -> ActorResult<()> {
         Produces::ok(())
     }
 }

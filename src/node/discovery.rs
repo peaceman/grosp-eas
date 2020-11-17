@@ -7,12 +7,9 @@ use serde::{Deserialize, Serialize};
 
 use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
-use std::convert::TryFrom;
 use std::time::Duration;
-use tokio::time::Interval;
 use tracing::{error, info};
 
-use crate::consul::health::ServiceEntry;
 pub use provider::NodeDiscoveryProvider;
 use std::fmt;
 

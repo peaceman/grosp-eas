@@ -5,7 +5,7 @@ pub mod kv;
 mod request;
 
 use anyhow::{Context, Result};
-use reqwest::{Client as HttpClient, ClientBuilder};
+use reqwest::ClientBuilder;
 use std::time::Duration;
 
 #[derive(Debug)]

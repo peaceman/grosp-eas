@@ -114,7 +114,7 @@ where
     D: Deserializer<'de>,
 {
     let s: String = Deserialize::deserialize(deserializer)?;
-    let mut v = s.split('/').next().unwrap_or("");
+    let v = s.split('/').next().unwrap_or("");
 
     if !v.ends_with("::") {
         v.parse().map_err(D::Error::custom)

@@ -3,9 +3,7 @@ mod request;
 pub mod servers;
 
 use reqwest::ClientBuilder;
-use serde::de::Error;
-use serde::{Deserialize, Deserializer, Serialize};
-use std::net::Ipv6Addr;
+use serde::{Deserialize, Serialize};
 
 pub type Result<T> = std::result::Result<T, error::Error>;
 

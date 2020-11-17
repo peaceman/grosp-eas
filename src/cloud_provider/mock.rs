@@ -20,19 +20,19 @@ impl Actor for MockCloudProvider {
 
 #[async_trait]
 impl CloudProvider for MockCloudProvider {
-    async fn get_node_info(&mut self, hostname: String) -> ActorResult<Option<CloudNodeInfo>> {
+    async fn get_node_info(&mut self, _hostname: String) -> ActorResult<Option<CloudNodeInfo>> {
         Produces::ok(None)
     }
 
     async fn create_node(
         &mut self,
-        hostname: String,
-        target_state: NodeDiscoveryState,
+        _hostname: String,
+        _target_state: NodeDiscoveryState,
     ) -> ActorResult<CloudNodeInfo> {
         unimplemented!()
     }
 
-    async fn delete_node(&mut self, node_info: CloudNodeInfo) -> ActorResult<()> {
+    async fn delete_node(&mut self, _node_info: CloudNodeInfo) -> ActorResult<()> {
         Produces::ok(())
     }
 

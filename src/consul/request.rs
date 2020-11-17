@@ -1,5 +1,5 @@
 use crate::consul::{Config, QueryMeta, QueryOptions, WriteMeta, WriteOptions};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use http::StatusCode;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Client as HttpClient, RequestBuilder, Url};
