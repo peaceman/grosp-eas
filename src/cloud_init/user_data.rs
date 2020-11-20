@@ -34,7 +34,7 @@ impl GenerateUserData for UserDataGenerator {
         }
 
         cloud_config.write_files.push(CloudConfigWriteFile {
-            path: String::from("/root/extra-vars.yaml"),
+            path: self.config.extra_vars_destination_path.clone(),
             encoding: String::from("gz+b64"),
             content: encode(extra_vars.as_slice())?,
         });

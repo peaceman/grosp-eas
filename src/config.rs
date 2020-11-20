@@ -103,6 +103,7 @@ pub enum NodeGroupDiscoveryProvider {
 pub struct CloudInit {
     pub user_data_base_file_path: String,
     pub extra_vars_base_file_path: String,
+    pub extra_vars_destination_path: String,
     pub user_data_files: Vec<CloudInitUserDataFile>,
 }
 
