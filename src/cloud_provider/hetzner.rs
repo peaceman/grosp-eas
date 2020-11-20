@@ -76,8 +76,32 @@ impl CloudProvider for HetznerCloudProvider {
         unimplemented!()
     }
 
+    #[tracing::instrument(name = "HetznerCloudProvider::get_nodes", skip(self))]
     async fn get_nodes(&mut self) -> ActorResult<Vec<CloudNodeInfo>> {
-        unimplemented!()
+        let selector = &self.config.group_label_name;
+        let servers = match self.client.get_all_servers(Some(selector)).await {
+            Ok(v) => v,
+            Err(e) => {
+                error!("Failed to fetch nodes: {:?}", e);
+
+                return Produces::ok(vec![]);
+            }
+        };
+
+        let nodes = servers
+            .into_iter()
+            .filter_map(
+                |s| match create_cloud_node_info(s, &self.config.group_label_name) {
+                    Ok(v) => Some(v),
+                    Err(e) => {
+                        warn!("Failed to create cloud node info: {:?}", e);
+                        None
+                    }
+                },
+            )
+            .collect();
+
+        Produces::ok(nodes)
     }
 }
 
