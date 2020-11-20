@@ -3,7 +3,7 @@ use crate::hetzner_cloud;
 use crate::hetzner_cloud::error::Error;
 use crate::hetzner_cloud::servers::{Server, Servers};
 use crate::node::discovery::NodeDiscoveryState;
-use act_zero::{Actor, ActorResult, Addr, Produces};
+use act_zero::{Actor, ActorError, ActorResult, Addr, Produces};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use std::net::IpAddr;
@@ -36,6 +36,10 @@ impl Actor for HetznerCloudProvider {
     {
         info!("Started");
         Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        false
     }
 }
 
@@ -72,8 +76,23 @@ impl CloudProvider for HetznerCloudProvider {
         unimplemented!()
     }
 
+    #[tracing::instrument(name = "HetznerCloudProvider::delete_node", skip(self))]
     async fn delete_node(&mut self, node_info: CloudNodeInfo) -> ActorResult<()> {
-        unimplemented!()
+        let server_id: u64 = match node_info.identifier.parse() {
+            Ok(v) => v,
+            Err(e) => {
+                error!("Failed to parse node identifier: {:?}", e);
+                Err(e)?
+            }
+        };
+
+        match self.client.delete_server(server_id).await {
+            Ok(_) => Produces::ok(()),
+            Err(e) => {
+                error!("Failed to delete server: {:?}", e);
+                Err(e)?
+            }
+        }
     }
 
     #[tracing::instrument(name = "HetznerCloudProvider::get_nodes", skip(self))]
