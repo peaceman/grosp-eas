@@ -71,7 +71,7 @@ impl NodeDiscoveryProvider for ConsulNodeDiscovery {
 
         let mut tags = service.Tags.clone().unwrap_or_else(|| vec![]);
         tags.retain(|t| !is_state_tag(t));
-        tags.push(state.to_string());
+        tags.push(format!("state={}", state.to_string()));
 
         service.Tags = Some(tags);
 
