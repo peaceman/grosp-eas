@@ -128,6 +128,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // return Ok(());
 
     let config = load_config()?;
+    let node_group_scaler_config = Arc::new(config.node_group_scaler.clone());
 
     let stream_factory = build_stream_factory_from_config(Arc::clone(&config))?;
     let cloud_provider = cloud_provider::build_from_config(Arc::clone(&config))?;
@@ -143,15 +144,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         cloud_provider.clone(),
         dns_provider.clone(),
         stream_factory.clone(),
-        // Arc::new(vec![
-        //     "beta.gt.n2305.link",
-        //     "gamma.gt.n2305.link",
-        //     "delta.gt.n2305.link",
-        //     "epsilon.gt.n2305.link",
-        //     "psi.gt.n2305.link",
-        // ]),
-        // Arc::new(('a'..='z').collect::<Vec<char>>()),
-        Arc::new("gt.n2305.link".to_owned()),
+        Arc::new(node_group_scaler_config.node_hostname_suffix.clone()),
+        Arc::clone(&node_group_scaler_config),
     ));
 
     let _node_discovery = spawn_actor(NodeDiscovery::new(

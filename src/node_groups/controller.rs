@@ -1,6 +1,7 @@
 mod state_machine;
 
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
+use crate::config;
 use crate::dns_provider::DnsProvider;
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryObserver, NodeDiscoveryProvider};
 use crate::node::exploration::NodeExplorationObserver;
@@ -37,6 +38,7 @@ pub struct NodeGroupsController {
     dns_provider: Addr<dyn DnsProvider>,
     node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
     hostname_generator: Arc<dyn HostnameGenerator>,
+    node_group_scaler_config: Arc<config::NodeGroupScaler>,
 }
 
 impl NodeGroupsController {
@@ -46,6 +48,7 @@ impl NodeGroupsController {
         dns_provider: Addr<dyn DnsProvider>,
         node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
         hostname_generator: Arc<dyn HostnameGenerator>,
+        node_group_scaler_config: Arc<config::NodeGroupScaler>,
     ) -> Self {
         NodeGroupsController {
             node_groups: HashMap::new(),
@@ -57,6 +60,7 @@ impl NodeGroupsController {
             dns_provider,
             node_stats_stream_factory,
             hostname_generator,
+            node_group_scaler_config,
         }
     }
 }
@@ -134,6 +138,7 @@ impl NodeGroupDiscoveryObserver for NodeGroupsController {
                                 self.node_stats_stream_factory.clone(),
                                 Arc::clone(&self.hostname_generator),
                                 self.node_group_max_retain_time.clone(),
+                                Arc::clone(&self.node_group_scaler_config),
                             ),
                             Some(state_machine::Event::Initialize),
                         )
@@ -252,6 +257,7 @@ impl NodeGroupsController {
             self.node_stats_stream_factory.clone(),
             Arc::clone(&self.hostname_generator),
             self.node_group_max_retain_time.clone(),
+            Arc::clone(&self.node_group_scaler_config),
         );
 
         process_node_group_machine(ngm, Some(state_machine::Event::Initialize)).await

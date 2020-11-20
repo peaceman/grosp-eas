@@ -16,6 +16,7 @@ pub struct Config {
     pub cloud_provider: CloudProvider,
     pub dns_provider: DnsProvider,
     pub cloud_init: CloudInit,
+    pub node_group_scaler: NodeGroupScaler,
 }
 
 #[derive(Deserialize)]
@@ -111,6 +112,12 @@ pub struct CloudInit {
 pub struct CloudInitUserDataFile {
     pub source: String,
     pub destination: String,
+}
+
+#[derive(Clone, Deserialize, Debug)]
+pub struct NodeGroupScaler {
+    pub node_hostname_suffix: String,
+    pub scale_lock_timeout_s: u64,
 }
 
 pub fn load_config() -> anyhow::Result<AppConfig> {

@@ -1,4 +1,5 @@
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
+use crate::config;
 use crate::dns_provider::DnsProvider;
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryObserver, NodeDiscoveryProvider};
 use crate::node::exploration::NodeExplorationObserver;
@@ -42,6 +43,7 @@ pub struct Shared {
     node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
     hostname_generator: Arc<dyn HostnameGenerator>,
     discovery_timeout: Duration,
+    scaler_config: Arc<config::NodeGroupScaler>,
 }
 
 #[derive(Debug)]
@@ -64,6 +66,7 @@ impl Handler for Data<Initializing> {
                     self.shared.dns_provider.clone(),
                     self.shared.node_stats_stream_factory.clone(),
                     Arc::clone(&self.shared.hostname_generator),
+                    Arc::clone(&self.shared.scaler_config),
                 ));
 
                 NodeGroupMachine::Running(Data {
@@ -205,6 +208,7 @@ impl NodeGroupMachine {
         node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
         hostname_generator: Arc<dyn HostnameGenerator>,
         discovery_timeout: Duration,
+        scaler_config: Arc<config::NodeGroupScaler>,
     ) -> Self {
         Self::Initializing(Data {
             shared: Shared {
@@ -215,6 +219,7 @@ impl NodeGroupMachine {
                 node_stats_stream_factory,
                 hostname_generator,
                 discovery_timeout,
+                scaler_config,
             },
             state: Initializing,
         })

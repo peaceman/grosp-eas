@@ -1,4 +1,5 @@
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
+use crate::config;
 use crate::dns_provider::DnsProvider;
 use crate::node::discovery::{
     NodeDiscoveryData, NodeDiscoveryObserver, NodeDiscoveryProvider, NodeDiscoveryState,
@@ -32,6 +33,7 @@ pub struct NodeGroupScaler {
     node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
     hostname_generator: Arc<dyn HostnameGenerator>,
     scale_locks_spare: SpareScaleLocks,
+    config: Arc<config::NodeGroupScaler>,
 }
 
 #[derive(Default)]
@@ -54,6 +56,7 @@ impl NodeGroupScaler {
         dns_provider: Addr<dyn DnsProvider>,
         node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
         hostname_generator: Arc<dyn HostnameGenerator>,
+        config: Arc<config::NodeGroupScaler>,
     ) -> Self {
         NodeGroupScaler {
             node_group,
@@ -67,6 +70,7 @@ impl NodeGroupScaler {
             dns_provider,
             node_stats_stream_factory,
             hostname_generator,
+            config,
         }
     }
 }
@@ -432,16 +436,14 @@ impl NodeGroupScaler {
                 "Trigger provisioning of new active nodes to reach the minimum"
             );
 
+            let scale_lock_timeout = self.config.scale_lock_timeout_s;
             let scale_locks = (0..missing_nodes)
                 .map(|_| self.provision_new_node(NodeDiscoveryState::Active))
                 .map(|hostname| {
                     ScaleLock::new(
                         hostname,
                         ScaleLockExpectation::State(NodeState::Active),
-                        ScaleLockCooldowns::new(
-                            None,
-                            future_instant(10 * 60), // todo configuration
-                        ),
+                        ScaleLockCooldowns::new(None, future_instant(scale_lock_timeout)),
                     )
                 })
                 .collect();
@@ -641,7 +643,7 @@ impl NodeGroupScaler {
             _ => ScaleLock::new(
                 hostname.into(),
                 ScaleLockExpectation::Gone,
-                ScaleLockCooldowns::new(None, future_instant(10 * 60)), // todo configuration
+                ScaleLockCooldowns::new(None, future_instant(self.config.scale_lock_timeout_s)),
             ),
         }
     }
