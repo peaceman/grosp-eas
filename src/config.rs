@@ -79,6 +79,14 @@ pub enum CloudProvider {
         exploration_path: String,
         discovery_path: String,
     },
+    Hetzner {
+        server_type: String,
+        image: String,
+        ssh_keys: Vec<String>,
+        group_label_name: String,
+        api_address: String,
+        api_token: String,
+    },
 }
 
 #[derive(Deserialize)]

@@ -22,10 +22,10 @@ pub struct HetznerCloudProvider<UDG: GenerateUserData> {
 
 #[derive(Clone, Debug)]
 pub struct Config {
-    group_label_name: String,
-    server_type: String,
-    image: String,
-    ssh_keys: Vec<String>,
+    pub group_label_name: String,
+    pub server_type: String,
+    pub image: String,
+    pub ssh_keys: Vec<String>,
 }
 
 impl<UDG: GenerateUserData> HetznerCloudProvider<UDG> {

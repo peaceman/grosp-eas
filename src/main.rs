@@ -2,12 +2,14 @@ use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::{call, upcast, Actor, ActorResult, Addr, Produces};
 use async_trait::async_trait;
 use chrono::Utc;
+use edge_auto_scaler::cloud_init::user_data::{GenerateUserData, UserDataGenerator};
 use edge_auto_scaler::cloud_provider::{CloudNodeInfo, CloudProvider, FileCloudProvider};
 use edge_auto_scaler::config::load_config;
 use edge_auto_scaler::consul::agent::AgentService;
 use edge_auto_scaler::consul::catalog::{Catalog, CatalogRegistration};
 use edge_auto_scaler::consul::health::Health;
 use edge_auto_scaler::dns_provider::DnsProvider;
+use edge_auto_scaler::hetzner_cloud::servers::{NewServer, Servers};
 use edge_auto_scaler::node::discovery::{
     NodeDiscovery, NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState,
 };
@@ -19,12 +21,13 @@ use edge_auto_scaler::node::stats::{
 use edge_auto_scaler::node::{NodeController, NodeDrainingCause, NodeStats};
 use edge_auto_scaler::node_groups::discovery::{FileNodeGroupDiscovery, NodeGroupDiscovery};
 use edge_auto_scaler::node_groups::NodeGroupsController;
-use edge_auto_scaler::{cloud_provider, consul, dns_provider, node, node_groups};
+use edge_auto_scaler::{cloud_provider, consul, dns_provider, hetzner_cloud, node, node_groups};
 use env_logger::Env;
 use futures::task::Context;
 use opentelemetry::api::Provider;
 use opentelemetry::sdk;
 use rand::Rng;
+use serde_yaml::{Mapping, Value};
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::net::IpAddr;
@@ -78,55 +81,6 @@ fn init_logging() -> Result<(), Box<dyn std::error::Error>> {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_logging()?;
 
-    // let consul_client = consul::Client::new(
-    //     consul::Config::builder()
-    //         .address("http://127.0.0.1:8500".into())
-    //         .build()?,
-    // )?;
-    //
-    // let (services, meta) = consul_client
-    //     .service(
-    //         "edge",
-    //         None,
-    //         true,
-    //         Some(
-    //             vec![(
-    //                 "filter".to_owned(),
-    //                 "Node.Node == \"peaceDesk2k20.local\"".to_owned(),
-    //             )]
-    //             .into_iter()
-    //             .collect(),
-    //         ),
-    //         None,
-    //     )
-    //     .await?;
-    //
-    // let service_entry = services.first().unwrap();
-    // let mut service = service_entry.Service.clone();
-    // service.Tags = service.Tags.or(Some(vec![])).map(|mut t| {
-    //     t.push("foo=bar".into());
-    //     t
-    // });
-    //
-    // println!("{:?}", service);
-    //
-    // let registration = CatalogRegistration {
-    //     ID: service_entry.Node.ID.clone(),
-    //     Node: service_entry.Node.Node.clone(),
-    //     Address: service_entry.Node.Address.clone(),
-    //     TaggedAddresses: HashMap::new(),
-    //     NodeMeta: HashMap::new(),
-    //     Datacenter: service_entry.Node.Datacenter.clone().unwrap_or_default(),
-    //     Service: Some(service),
-    //     Check: None,
-    //     SkipNodeUpdate: true,
-    // };
-    //
-    // println!("{:?}", service_entry);
-    // consul_client.register(&registration, None).await;
-    //
-    // return Ok(());
-
     let config = load_config()?;
     let node_group_scaler_config = Arc::new(config.node_group_scaler.clone());
 
@@ -165,35 +119,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         upcast!(node_groups_controller.clone()),
         config.node_group_discovery.interval,
     ));
-
-    // let node_controller = spawn_actor(NodeController::new(
-    //     "demo".into(),
-    //     Default::default(),
-    //     upcast!(node_discovery_provider),
-    //     Default::default(),
-    //     Default::default(),
-    //     stream_factory.clone(),
-    // ));
-    //
-    // call!(node_controller.explored_node(CloudNodeInfo {
-    //     identifier: "fock".into(),
-    //     hostname: "demo".into(),
-    //     group: "lel".into(),
-    //     ip_addresses: vec!["127.0.0.1".parse().unwrap()],
-    //     created_at: Utc::now(),
-    // }))
-    // .await?;
-    // call!(node_controller.discovered_node(NodeDiscoveryData {
-    //     group: "lel".into(),
-    //     hostname: "demo".into(),
-    //     state: NodeDiscoveryState::Ready,
-    // }))
-    // .await?;
-    //
-    // call!(node_controller.activate_node()).await?;
-    //
-    // tokio::time::delay_for(Duration::from_secs(15)).await;
-    // call!(node_controller.deprovision_node(NodeDrainingCause::Scaling)).await;
 
     let mut interval = tokio::time::interval(Duration::from_secs(30));
     loop {
