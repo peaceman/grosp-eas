@@ -1,6 +1,7 @@
 use crate::config::Config;
 use std::sync::Arc;
 
+pub mod cloud_init;
 pub mod cloud_provider;
 pub mod config;
 pub mod consul;

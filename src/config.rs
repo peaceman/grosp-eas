@@ -15,6 +15,7 @@ pub struct Config {
     pub node_group_discovery_provider: NodeGroupDiscoveryProvider,
     pub cloud_provider: CloudProvider,
     pub dns_provider: DnsProvider,
+    pub cloud_init: CloudInit,
 }
 
 #[derive(Deserialize)]
@@ -96,6 +97,19 @@ pub enum DnsProvider {
 pub enum NodeGroupDiscoveryProvider {
     File { path: String },
     Consul { key_prefix: String, address: String },
+}
+
+#[derive(Clone, Deserialize)]
+pub struct CloudInit {
+    pub user_data_base_file_path: String,
+    pub extra_vars_base_file_path: String,
+    pub user_data_files: Vec<CloudInitUserDataFile>,
+}
+
+#[derive(Clone, Deserialize)]
+pub struct CloudInitUserDataFile {
+    pub source: String,
+    pub destination: String,
 }
 
 pub fn load_config() -> anyhow::Result<AppConfig> {
