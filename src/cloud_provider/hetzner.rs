@@ -71,6 +71,7 @@ impl CloudProvider for HetznerCloudProvider {
     async fn create_node(
         &mut self,
         hostname: String,
+        group: String,
         target_state: NodeDiscoveryState,
     ) -> ActorResult<CloudNodeInfo> {
         unimplemented!()

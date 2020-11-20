@@ -30,6 +30,7 @@ pub trait CloudProvider: Actor {
     async fn create_node(
         &mut self,
         hostname: String,
+        group: String,
         target_state: NodeDiscoveryState,
     ) -> ActorResult<CloudNodeInfo>;
     async fn delete_node(&mut self, node_info: CloudNodeInfo) -> ActorResult<()>;

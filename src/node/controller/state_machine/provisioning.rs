@@ -68,6 +68,7 @@ impl Data<Provisioning> {
 
         let create_node_result = call!(self.shared.cloud_provider.create_node(
             self.shared.node.hostname.clone(),
+            self.shared.node.group.clone(),
             self.state.target_state.clone()
         ))
         .await;

@@ -74,19 +74,20 @@ impl CloudProvider for FileCloudProvider {
     async fn create_node(
         &mut self,
         hostname: String,
+        group: String,
         target_state: NodeDiscoveryState,
     ) -> ActorResult<CloudNodeInfo> {
         let node_info = CloudNodeInfo {
             identifier: format!("{}-identifier", hostname),
             hostname: hostname.clone(),
-            group: "topkek".into(),
+            group: group.clone(),
             created_at: Utc::now(),
             ip_addresses: vec!["1.2.3.4".parse().unwrap()],
         };
 
         let discovery_data = NodeDiscoveryData {
             hostname: hostname.clone(),
-            group: "topkek".to_string(),
+            group: group.clone(),
             state: target_state,
         };
 

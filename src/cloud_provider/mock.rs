@@ -27,6 +27,7 @@ impl CloudProvider for MockCloudProvider {
     async fn create_node(
         &mut self,
         _hostname: String,
+        _group: String,
         _target_state: NodeDiscoveryState,
     ) -> ActorResult<CloudNodeInfo> {
         unimplemented!()
