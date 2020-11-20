@@ -1,13 +1,22 @@
 use crate::config;
-use anyhow::{Context, Result};
+use crate::utils;
+use anyhow::{anyhow, Context, Result};
 use base64_stream::ToBase64Writer;
 use serde::{Deserialize, Serialize};
+use serde_yaml::Value;
+use std::any::type_name;
 use std::fs::File;
 use std::io;
 use std::io::{BufReader, Read};
 
 pub trait GenerateUserData {
-    fn generate_user_data<W: io::Write>(&self, hostname: &str, writer: W) -> Result<()>;
+    fn generate_user_data<W: io::Write>(
+        &self,
+        hostname: &str,
+        group: &str,
+        target_state: &str,
+        writer: W,
+    ) -> Result<()>;
 }
 
 pub struct UserDataGenerator {
@@ -21,8 +30,19 @@ impl UserDataGenerator {
 }
 
 impl GenerateUserData for UserDataGenerator {
-    fn generate_user_data<W: io::Write>(&self, hostname: &str, mut writer: W) -> Result<()> {
-        let extra_vars = generate_extra_vars(&hostname, &self.config.extra_vars_base_file_path)?;
+    fn generate_user_data<W: io::Write>(
+        &self,
+        hostname: &str,
+        group: &str,
+        target_state: &str,
+        mut writer: W,
+    ) -> Result<()> {
+        let extra_vars = generate_extra_vars(
+            &hostname,
+            group,
+            target_state,
+            &self.config.extra_vars_base_file_path,
+        )?;
         let mut cloud_config = read_cloud_config(&self.config.user_data_base_file_path)?;
 
         for user_data_file in self.config.user_data_files.iter() {
@@ -46,13 +66,42 @@ impl GenerateUserData for UserDataGenerator {
     }
 }
 
-fn generate_extra_vars(hostname: &str, base_file_path: &str) -> Result<Vec<u8>> {
-    let file = File::open(base_file_path)?;
-    let hostname_line = format!("\nhostname: {}\n", hostname);
+fn generate_extra_vars(
+    hostname: &str,
+    group: &str,
+    target_state: &str,
+    base_file_path: &str,
+) -> Result<Vec<u8>> {
+    let mut value: Value = File::open(base_file_path)
+        .with_context(|| format!("Failed to open file {}", base_file_path))
+        .map(BufReader::new)
+        .and_then(|r| {
+            serde_yaml::from_reader(r).with_context(|| "Failed to parse extra vars base file")
+        })?;
 
-    let mut extra_vars = Vec::with_capacity(file.metadata()?.len() as usize);
-    file.chain(hostname_line.as_bytes())
-        .read_to_end(&mut extra_vars)?;
+    if !value.is_mapping() {
+        return Err(anyhow!(
+            "Root object in extra vars has to be a mapping but is currently: {}",
+            utils::type_name_val(&value)
+        ));
+    }
+
+    let mut mapping = value.as_mapping_mut().unwrap();
+    mapping.insert(
+        Value::String(String::from("hostname")),
+        Value::String(String::from(hostname)),
+    );
+    mapping.insert(
+        Value::String(String::from("node_group")),
+        Value::String(String::from(group)),
+    );
+    mapping.insert(
+        Value::String(String::from("node_state")),
+        Value::String(String::from(target_state)),
+    );
+
+    let mut extra_vars = Vec::new();
+    serde_yaml::to_writer(&mut extra_vars, &mapping)?;
 
     Ok(extra_vars)
 }

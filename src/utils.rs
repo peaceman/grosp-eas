@@ -1,4 +1,5 @@
 use futures::stream::{FuturesUnordered, StreamExt};
+use std::any::type_name;
 use std::path::{Path, PathBuf};
 use tokio::fs::DirEntry;
 use tracing::error;
@@ -55,4 +56,8 @@ pub fn path_append(path: impl AsRef<Path>, append: &str) -> PathBuf {
     os.push(append);
 
     PathBuf::from(os)
+}
+
+pub fn type_name_val<T: ?Sized>(_: &T) -> &'static str {
+    type_name::<T>()
 }
