@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Server {
@@ -15,6 +15,15 @@ pub struct Server {
     pub created: DateTime<Utc>,
     pub public_net: ServerPublicNet,
     pub labels: HashMap<String, String>,
+}
+
+impl Server {
+    pub fn get_ip_addresses(&self) -> Vec<IpAddr> {
+        vec![
+            IpAddr::V4(self.public_net.ipv4.ip),
+            IpAddr::V6(self.public_net.ipv6.ip),
+        ]
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

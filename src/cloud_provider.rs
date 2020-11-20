@@ -1,4 +1,5 @@
 mod file;
+mod hetzner;
 mod mock;
 
 use act_zero::{Actor, ActorResult, Addr};
