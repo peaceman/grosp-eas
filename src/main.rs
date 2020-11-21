@@ -90,7 +90,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let node_discovery_provider =
         node::discovery::provider::build_from_config(Arc::clone(&config))?;
 
-    let node_group_discovery_provider =
+    let node_group_discovery_providers =
         node_groups::discovery::provider::build_from_config(Arc::clone(&config))?;
 
     let node_groups_controller = spawn_actor(NodeGroupsController::new(
@@ -115,7 +115,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ));
 
     let _node_group_discovery = spawn_actor(NodeGroupDiscovery::new(
-        vec![node_group_discovery_provider.clone()],
+        node_group_discovery_providers.clone(),
         upcast!(node_groups_controller.clone()),
         config.node_group_discovery.interval,
     ));

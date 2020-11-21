@@ -12,7 +12,7 @@ pub struct Config {
     pub node_discovery: NodeDiscovery,
     pub node_exploration: NodeExploration,
     pub node_discovery_provider: NodeDiscoveryProvider,
-    pub node_group_discovery_provider: NodeGroupDiscoveryProvider,
+    pub node_group_discovery_providers: Vec<NodeGroupDiscoveryProvider>,
     pub cloud_provider: CloudProvider,
     pub dns_provider: DnsProvider,
     pub cloud_init: CloudInit,
