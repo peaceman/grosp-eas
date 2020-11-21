@@ -45,7 +45,7 @@ jobs:
           override: true
 
       - name: Set TMPDIR
-        run: echo ::set-env name=TMPDIR::$GITHUB_WORKSPACE
+        run: echo "TMPDIR=$GITHUB_WORKSPACE" >> $GITHUB_ENV
 
       - name: Run cargo test
         uses: actions-rs/cargo@v1
