@@ -26,7 +26,7 @@ pub fn build_from_config(
 }
 
 fn build_provider_from_config(
-    config: &AppConfig,
+    _config: &AppConfig,
     provider_config: &config::NodeGroupDiscoveryProvider,
 ) -> anyhow::Result<Addr<dyn NodeGroupDiscoveryProvider>> {
     Ok(match provider_config {

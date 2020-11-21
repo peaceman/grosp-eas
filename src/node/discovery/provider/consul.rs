@@ -69,7 +69,7 @@ impl NodeDiscoveryProvider for ConsulNodeDiscovery {
         let service_entry = self.find_service_definition(&hostname).await?;
         let mut service = service_entry.Service;
 
-        let mut tags = service.Tags.clone().unwrap_or_else(|| vec![]);
+        let mut tags = service.Tags.clone().unwrap_or_else(Vec::new);
         tags.retain(|t| !is_state_tag(t));
         tags.push(format!("state={}", state.to_string()));
 
@@ -146,12 +146,12 @@ impl TryFrom<ServiceEntry> for NodeDiscoveryData {
     }
 }
 
-fn parse_node_state_from_tags(tags: &Vec<String>) -> Option<NodeDiscoveryState> {
+fn parse_node_state_from_tags(tags: &[String]) -> Option<NodeDiscoveryState> {
     tags.iter().find_map(|tag| {
         if !is_state_tag(tag) {
             None
         } else {
-            let parts: Vec<&str> = tag.splitn(2, "=").collect();
+            let parts: Vec<&str> = tag.splitn(2, '=').collect();
 
             parts
                 .get(1)

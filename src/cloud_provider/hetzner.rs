@@ -1,15 +1,12 @@
 use crate::cloud_init::user_data::GenerateUserData;
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
 use crate::hetzner_cloud;
-use crate::hetzner_cloud::error::Error;
 use crate::hetzner_cloud::servers::{NewServer, Server, Servers};
 use crate::node::discovery::NodeDiscoveryState;
 use act_zero::{Actor, ActorError, ActorResult, Addr, Produces};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use std::any::type_name;
 use std::collections::HashMap;
-use std::net::IpAddr;
 use tracing::error;
 use tracing::info;
 use tracing::warn;
@@ -52,7 +49,7 @@ where
         Produces::ok(())
     }
 
-    async fn error(&mut self, error: ActorError) -> bool {
+    async fn error(&mut self, _error: ActorError) -> bool {
         false
     }
 }
@@ -100,7 +97,7 @@ where
                 Ok(v) => v,
                 Err(e) => {
                     error!("Failed to generate user data: {:?}", e);
-                    Err(e)?
+                    return Err(e.into());
                 }
             };
 
@@ -122,7 +119,7 @@ where
             Ok(v) => v,
             Err(e) => {
                 error!("Failed to create server: {:?}", e);
-                Err(e)?
+                return Err(e.into());
             }
         };
 
@@ -131,7 +128,7 @@ where
                 Ok(v) => v,
                 Err(e) => {
                     error!("Failed to create cloud node info: {:?}", e);
-                    Err(e)?
+                    return Err(e.into());
                 }
             },
         )
@@ -143,7 +140,7 @@ where
             Ok(v) => v,
             Err(e) => {
                 error!("Failed to parse node identifier: {:?}", e);
-                Err(e)?
+                return Err(e.into());
             }
         };
 
@@ -151,7 +148,7 @@ where
             Ok(_) => Produces::ok(()),
             Err(e) => {
                 error!("Failed to delete server: {:?}", e);
-                Err(e)?
+                return Err(e.into());
             }
         }
     }

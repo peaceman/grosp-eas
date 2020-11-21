@@ -101,7 +101,7 @@ impl NodeController {
                 node_stats_observer,
                 node_stats_stream_factory,
                 Config {
-                    draining_time: Duration::from_secs(1 * 60),
+                    draining_time: Duration::from_secs(60),
                     provisioning_timeout: Duration::from_secs(2 * 60),
                     discovery_timeout: Duration::from_secs(2 * 60),
                 },

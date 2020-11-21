@@ -1,44 +1,22 @@
 use act_zero::runtimes::tokio::spawn_actor;
-use act_zero::{call, upcast, Actor, ActorResult, Addr, Produces};
-use async_trait::async_trait;
-use chrono::Utc;
-use edge_auto_scaler::cloud_init::user_data::{GenerateUserData, UserDataGenerator};
-use edge_auto_scaler::cloud_provider::{CloudNodeInfo, CloudProvider, FileCloudProvider};
+use act_zero::upcast;
 use edge_auto_scaler::config::load_config;
-use edge_auto_scaler::consul::agent::AgentService;
-use edge_auto_scaler::consul::catalog::{Catalog, CatalogRegistration};
-use edge_auto_scaler::consul::health::Health;
-use edge_auto_scaler::dns_provider::DnsProvider;
-use edge_auto_scaler::hetzner_cloud::servers::{NewServer, Servers};
-use edge_auto_scaler::node::discovery::{
-    NodeDiscovery, NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState,
-};
+use edge_auto_scaler::node::discovery::NodeDiscovery;
 use edge_auto_scaler::node::exploration::NodeExploration;
-use edge_auto_scaler::node::stats::{
-    build_stream_factory_from_config, FileNodeStatsStream, FileNodeStatsStreamFactory,
-    NSSStreamFactory, NodeStatsStreamFactory,
-};
-use edge_auto_scaler::node::{NodeController, NodeDrainingCause, NodeStats};
-use edge_auto_scaler::node_groups::discovery::{FileNodeGroupDiscovery, NodeGroupDiscovery};
+use edge_auto_scaler::node::stats::{build_stream_factory_from_config, NodeStatsStreamFactory};
+use edge_auto_scaler::node::NodeStats;
+use edge_auto_scaler::node_groups::discovery::NodeGroupDiscovery;
 use edge_auto_scaler::node_groups::NodeGroupsController;
-use edge_auto_scaler::{cloud_provider, consul, dns_provider, hetzner_cloud, node, node_groups};
-use env_logger::Env;
+use edge_auto_scaler::{cloud_provider, dns_provider, node, node_groups};
 use futures::task::Context;
 use opentelemetry::api::Provider;
 use opentelemetry::sdk;
-use rand::Rng;
-use serde_yaml::{Mapping, Value};
-use std::collections::HashMap;
-use std::iter::FromIterator;
-use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::macros::support::{Pin, Poll};
-use tokio::stream::{Stream, StreamExt};
+use tokio::stream::Stream;
 use tracing::info;
 use tracing::subscriber::set_global_default;
-use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
-use tracing_subscriber::fmt::Subscriber;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{EnvFilter, Registry};
 

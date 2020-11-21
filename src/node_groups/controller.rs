@@ -137,7 +137,7 @@ impl NodeGroupDiscoveryObserver for NodeGroupsController {
                                 self.dns_provider.clone(),
                                 self.node_stats_stream_factory.clone(),
                                 Arc::clone(&self.hostname_generator),
-                                self.node_group_max_retain_time.clone(),
+                                self.node_group_max_retain_time,
                                 Arc::clone(&self.node_group_scaler_config),
                             ),
                             Some(state_machine::Event::Initialize),
@@ -256,7 +256,7 @@ impl NodeGroupsController {
             self.dns_provider.clone(),
             self.node_stats_stream_factory.clone(),
             Arc::clone(&self.hostname_generator),
-            self.node_group_max_retain_time.clone(),
+            self.node_group_max_retain_time,
             Arc::clone(&self.node_group_scaler_config),
         );
 

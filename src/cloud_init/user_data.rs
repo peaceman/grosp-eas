@@ -4,10 +4,9 @@ use anyhow::{anyhow, Context, Result};
 use base64_stream::ToBase64Writer;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
-use std::any::type_name;
 use std::fs::File;
 use std::io;
-use std::io::{BufReader, Read};
+use std::io::BufReader;
 
 pub trait GenerateUserData {
     fn generate_user_data<W: io::Write>(
@@ -59,7 +58,7 @@ impl GenerateUserData for UserDataGenerator {
             content: encode(extra_vars.as_slice())?,
         });
 
-        writer.write_all("#cloud-config\n".as_bytes())?;
+        writer.write_all(b"#cloud-config\n")?;
         serde_yaml::to_writer(writer, &cloud_config)?;
 
         Ok(())
@@ -86,7 +85,7 @@ fn generate_extra_vars(
         ));
     }
 
-    let mut mapping = value.as_mapping_mut().unwrap();
+    let mapping = value.as_mapping_mut().unwrap();
     mapping.insert(
         Value::String(String::from("hostname")),
         Value::String(String::from(hostname)),
@@ -109,7 +108,7 @@ fn generate_extra_vars(
 fn read_cloud_config(path: &str) -> Result<CloudConfig> {
     File::open(path)
         .with_context(|| format!("Failed to open file {}", path))
-        .map(|f| BufReader::new(f))
+        .map(BufReader::new)
         .and_then(|r| serde_yaml::from_reader(r).with_context(|| "Failed to parse cloud config"))
 }
 
