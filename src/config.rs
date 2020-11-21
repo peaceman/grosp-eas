@@ -5,7 +5,7 @@ use std::io::BufReader;
 use std::sync::Arc;
 use std::time::Duration;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct Config {
     pub node_stats: NodeStats,
     pub node_group_discovery: NodeGroupDiscovery,
@@ -17,9 +17,11 @@ pub struct Config {
     pub dns_provider: DnsProvider,
     pub cloud_init: CloudInit,
     pub node_group_scaler: NodeGroupScaler,
+    #[serde(with = "humantime_serde")]
+    pub node_group_discovery_timeout: Duration,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum NodeStats {
     File {
@@ -33,7 +35,7 @@ pub enum NodeStats {
     },
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct NodeStatsNSSTLS {
     pub ca_cert_path: String,
     pub client_cert_path: String,
@@ -41,7 +43,7 @@ pub struct NodeStatsNSSTLS {
     pub target_sni_name: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum NodeDiscoveryProvider {
     Mock,
@@ -54,25 +56,25 @@ pub enum NodeDiscoveryProvider {
     },
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct NodeGroupDiscovery {
     #[serde(with = "humantime_serde")]
     pub interval: Duration,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct NodeDiscovery {
     #[serde(with = "humantime_serde")]
     pub interval: Duration,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct NodeExploration {
     #[serde(with = "humantime_serde")]
     pub interval: Duration,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum CloudProvider {
     File {
@@ -89,7 +91,7 @@ pub enum CloudProvider {
     },
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum DnsProvider {
     Mock,
@@ -101,14 +103,14 @@ pub enum DnsProvider {
     },
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum NodeGroupDiscoveryProvider {
     File { path: String },
     Consul { key_prefix: String, address: String },
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, Debug)]
 pub struct CloudInit {
     pub user_data_base_file_path: String,
     pub extra_vars_base_file_path: String,
@@ -116,7 +118,7 @@ pub struct CloudInit {
     pub user_data_files: Vec<CloudInitUserDataFile>,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, Debug)]
 pub struct CloudInitUserDataFile {
     pub source: String,
     pub destination: String,

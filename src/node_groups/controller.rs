@@ -1,7 +1,6 @@
 mod state_machine;
 
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
-use crate::config;
 use crate::dns_provider::DnsProvider;
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryObserver, NodeDiscoveryProvider};
 use crate::node::exploration::NodeExplorationObserver;
@@ -11,6 +10,7 @@ use crate::node_groups::controller::state_machine::{Event, NodeGroupMachine};
 use crate::node_groups::discovery::NodeGroupDiscoveryObserver;
 use crate::node_groups::scaler::NodeGroupScaler;
 use crate::node_groups::NodeGroup;
+use crate::AppConfig;
 use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
 use act_zero::{send, Actor, ActorResult, Addr, Produces, WeakAddr};
@@ -30,7 +30,6 @@ struct NodeGroupInfo {
 
 pub struct NodeGroupsController {
     node_groups: HashMap<String, Option<NodeGroupMachine>>,
-    node_group_max_retain_time: Duration,
     timer: Timer,
     addr: WeakAddr<Self>,
     node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
@@ -38,7 +37,7 @@ pub struct NodeGroupsController {
     dns_provider: Addr<dyn DnsProvider>,
     node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
     hostname_generator: Arc<dyn HostnameGenerator>,
-    node_group_scaler_config: Arc<config::NodeGroupScaler>,
+    config: AppConfig,
 }
 
 impl NodeGroupsController {
@@ -48,11 +47,10 @@ impl NodeGroupsController {
         dns_provider: Addr<dyn DnsProvider>,
         node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
         hostname_generator: Arc<dyn HostnameGenerator>,
-        node_group_scaler_config: Arc<config::NodeGroupScaler>,
+        config: AppConfig,
     ) -> Self {
         NodeGroupsController {
             node_groups: HashMap::new(),
-            node_group_max_retain_time: Duration::from_secs(60 * 2),
             timer: Timer::default(),
             addr: Default::default(),
             node_discovery_provider,
@@ -60,7 +58,7 @@ impl NodeGroupsController {
             dns_provider,
             node_stats_stream_factory,
             hostname_generator,
-            node_group_scaler_config,
+            config,
         }
     }
 }
@@ -137,8 +135,7 @@ impl NodeGroupDiscoveryObserver for NodeGroupsController {
                                 self.dns_provider.clone(),
                                 self.node_stats_stream_factory.clone(),
                                 Arc::clone(&self.hostname_generator),
-                                self.node_group_max_retain_time,
-                                Arc::clone(&self.node_group_scaler_config),
+                                Arc::clone(&self.config),
                             ),
                             Some(state_machine::Event::Initialize),
                         )
@@ -251,8 +248,7 @@ impl NodeGroupsController {
             self.dns_provider.clone(),
             self.node_stats_stream_factory.clone(),
             Arc::clone(&self.hostname_generator),
-            self.node_group_max_retain_time,
-            Arc::clone(&self.node_group_scaler_config),
+            Arc::clone(&self.config),
         );
 
         process_node_group_machine(ngm, Some(state_machine::Event::Initialize)).await

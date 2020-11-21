@@ -77,7 +77,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         dns_provider.clone(),
         stream_factory.clone(),
         Arc::new(node_group_scaler_config.node_hostname_suffix.clone()),
-        Arc::clone(&node_group_scaler_config),
+        Arc::clone(&config),
     ));
 
     let _node_discovery = spawn_actor(NodeDiscovery::new(
