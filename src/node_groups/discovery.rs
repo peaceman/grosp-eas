@@ -18,7 +18,7 @@ pub trait NodeGroupDiscoveryObserver: Actor {
 }
 
 pub struct NodeGroupDiscovery {
-    provider: Addr<dyn NodeGroupDiscoveryProvider>,
+    providers: Vec<Addr<dyn NodeGroupDiscoveryProvider>>,
     observer: Addr<dyn NodeGroupDiscoveryObserver>,
     interval: Duration,
     timer: Timer,
@@ -27,12 +27,12 @@ pub struct NodeGroupDiscovery {
 
 impl NodeGroupDiscovery {
     pub fn new(
-        provider: Addr<dyn NodeGroupDiscoveryProvider>,
+        providers: Vec<Addr<dyn NodeGroupDiscoveryProvider>>,
         observer: Addr<dyn NodeGroupDiscoveryObserver>,
         interval: Duration,
     ) -> Self {
         Self {
-            provider,
+            providers,
             observer,
             interval,
             timer: Default::default(),
@@ -41,18 +41,20 @@ impl NodeGroupDiscovery {
     }
 
     async fn discover(&mut self) {
-        let discoveries = call!(self.provider.discover_node_groups()).await;
+        for provider in self.providers.iter() {
+            let discoveries = call!(provider.discover_node_groups()).await;
 
-        match discoveries {
-            Ok(discoveries) => {
-                for discovery in discoveries {
-                    send!(self.observer.observe_node_group_discovery(discovery));
+            match discoveries {
+                Ok(discoveries) => {
+                    for discovery in discoveries {
+                        send!(self.observer.observe_node_group_discovery(discovery));
+                    }
                 }
+                Err(e) => error!(
+                    error = format!("{:?}", e).as_str(),
+                    "Failed to discovery node groups"
+                ),
             }
-            Err(e) => error!(
-                error = format!("{:?}", e).as_str(),
-                "Failed to discovery node groups"
-            ),
         }
     }
 }

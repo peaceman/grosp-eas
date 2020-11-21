@@ -115,7 +115,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ));
 
     let _node_group_discovery = spawn_actor(NodeGroupDiscovery::new(
-        node_group_discovery_provider.clone(),
+        vec![node_group_discovery_provider.clone()],
         upcast!(node_groups_controller.clone()),
         config.node_group_discovery.interval,
     ));
