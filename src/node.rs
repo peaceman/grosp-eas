@@ -73,24 +73,15 @@ pub enum NodeState {
 
 impl NodeState {
     pub fn is_active(&self) -> bool {
-        match self {
-            NodeState::Active => true,
-            _ => false,
-        }
+        matches!(self, NodeState::Active)
     }
 
     pub fn is_draining(&self, cause: NodeDrainingCause) -> bool {
-        match self {
-            NodeState::Draining(ic) if *ic == cause => true,
-            _ => false,
-        }
+        matches!(self, NodeState::Draining(ic) if *ic == cause)
     }
 
     pub fn is_ready(&self) -> bool {
-        match self {
-            NodeState::Ready => true,
-            _ => false,
-        }
+        matches!(self, NodeState::Ready)
     }
 }
 

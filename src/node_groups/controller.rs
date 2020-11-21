@@ -226,13 +226,8 @@ impl NodeGroupsController {
         }
 
         // Remove discarded node groups from the controller
-        self.node_groups.retain(|_, ngmo| {
-            if let Some(NodeGroupMachine::Discarded(_)) = ngmo {
-                false
-            } else {
-                true
-            }
-        })
+        self.node_groups
+            .retain(|_, ngmo| !matches!(ngmo, Some(NodeGroupMachine::Discarded(_))))
     }
 
     #[tracing::instrument(

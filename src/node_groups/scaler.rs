@@ -674,10 +674,7 @@ impl NodeGroupScaler {
     )]
     async fn remove_deprovisioned_nodes(&mut self) {
         self.nodes
-            .retain(|_, scaling_node| match scaling_node.state {
-                NodeState::Deprovisioned => false,
-                _ => true,
-            });
+            .retain(|_, scaling_node| !matches!(scaling_node.state, NodeState::Deprovisioned));
     }
 
     #[tracing::instrument(
@@ -796,10 +793,9 @@ fn is_releasable_scale_lock(nodes: &HashMap<String, ScalingNode>, scale_lock: &S
 
     let fulfilled_expectation = match &scale_lock.expectation {
         ScaleLockExpectation::Gone => !nodes.contains_key(&scale_lock.hostname),
-        ScaleLockExpectation::State(expected_node_state) => match nodes.get(&scale_lock.hostname) {
-            Some(node) if &node.state == expected_node_state => true,
-            _ => false,
-        },
+        ScaleLockExpectation::State(expected_node_state) => {
+            matches!(nodes.get(&scale_lock.hostname), Some(node) if &node.state == expected_node_state)
+        }
     };
 
     if fulfilled_expectation {

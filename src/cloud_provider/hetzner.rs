@@ -148,7 +148,7 @@ where
             Ok(_) => Produces::ok(()),
             Err(e) => {
                 error!("Failed to delete server: {:?}", e);
-                return Err(e.into());
+                Err(e.into())
             }
         }
     }
