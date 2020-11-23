@@ -65,7 +65,7 @@ impl Handler for Data<Initializing> {
                     self.shared.dns_provider.clone(),
                     self.shared.node_stats_stream_factory.clone(),
                     Arc::clone(&self.shared.hostname_generator),
-                    Arc::new(self.shared.config.node_group_scaler.clone()),
+                    Arc::clone(&self.shared.config),
                 ));
 
                 NodeGroupMachine::Running(Data {

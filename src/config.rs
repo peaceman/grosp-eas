@@ -20,6 +20,7 @@ pub struct Config {
     pub node_group_scaler: NodeGroupScaler,
     #[serde(with = "humantime_serde")]
     pub node_group_discovery_timeout: Duration,
+    pub node_controller: NodeController,
 }
 
 #[derive(Deserialize, Debug)]
@@ -129,6 +130,16 @@ pub struct CloudInitUserDataFile {
 pub struct NodeGroupScaler {
     pub node_hostname_suffix: String,
     pub scale_lock_timeout_s: u64,
+}
+
+#[derive(Clone, Deserialize, Debug)]
+pub struct NodeController {
+    #[serde(with = "humantime_serde")]
+    pub draining_time: Duration,
+    #[serde(with = "humantime_serde")]
+    pub provisioning_timeout: Duration,
+    #[serde(with = "humantime_serde")]
+    pub discovery_timeout: Duration,
 }
 
 pub fn load_config() -> anyhow::Result<AppConfig> {

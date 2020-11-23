@@ -10,6 +10,7 @@ mod hostname;
 pub mod stats;
 
 pub use controller::NodeController;
+pub use controller::Providers as NodeControllerProviders;
 pub use hostname::HostnameGenerator;
 
 #[derive(Debug, Clone)]

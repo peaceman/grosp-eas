@@ -16,6 +16,7 @@ use std::time::Duration;
 use tracing::info;
 
 use crate::node::stats::NodeStatsStreamFactory;
+use crate::AppConfig;
 use config::Config;
 use stats_streamer::StatsStreamer;
 
@@ -78,16 +79,28 @@ impl Drop for NodeController {
     }
 }
 
+pub struct Providers {
+    pub node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
+    pub cloud_provider: Addr<dyn CloudProvider>,
+    pub dns_provider: Addr<dyn DnsProvider>,
+}
+
 impl NodeController {
     pub fn new(
         node: Node,
         node_stats_observer: WeakAddr<dyn NodeStatsObserver>,
         node_state_observer: WeakAddr<dyn NodeStateObserver>,
-        node_discovery_provider: Addr<dyn NodeDiscoveryProvider>,
-        cloud_provider: Addr<dyn CloudProvider>,
-        dns_provider: Addr<dyn DnsProvider>,
+        providers: Providers,
         node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
+        config: AppConfig,
     ) -> Self {
+        let nc_config = &config.node_controller;
+        let nm_config = Config {
+            draining_time: nc_config.draining_time,
+            provisioning_timeout: nc_config.provisioning_timeout,
+            discovery_timeout: nc_config.discovery_timeout,
+        };
+
         Self {
             node: node.clone(),
             addr: Default::default(),
@@ -95,16 +108,12 @@ impl NodeController {
             node_state_observer,
             node_machine: Some(NodeMachine::new(
                 node,
-                node_discovery_provider,
-                cloud_provider,
-                dns_provider,
+                providers.node_discovery_provider,
+                providers.cloud_provider,
+                providers.dns_provider,
                 node_stats_observer,
                 node_stats_stream_factory,
-                Config {
-                    draining_time: Duration::from_secs(60),
-                    provisioning_timeout: Duration::from_secs(2 * 60),
-                    discovery_timeout: Duration::from_secs(2 * 60),
-                },
+                nm_config,
             )),
         }
     }

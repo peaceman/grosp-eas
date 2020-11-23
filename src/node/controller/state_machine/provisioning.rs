@@ -1,7 +1,8 @@
 use super::*;
 use crate::node::discovery::NodeDiscoveryState;
 use act_zero::call;
-use tracing::error;
+use async_trait::async_trait;
+use tracing::{error, info};
 
 impl MachineState for Provisioning {}
 
@@ -11,6 +12,8 @@ impl Handler for Data<Provisioning> {
         match event {
             None => {
                 if self.reached_provisioning_timeout() {
+                    info!("Reached provisioning timeout; start de-provisioning");
+
                     NodeMachine::Deprovisioning(Data {
                         shared: self.shared,
                         state: Deprovisioning::new(self.state.node_info),

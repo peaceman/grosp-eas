@@ -1,5 +1,4 @@
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
-use crate::config;
 use crate::dns_provider::DnsProvider;
 use crate::node::discovery::{
     NodeDiscoveryData, NodeDiscoveryObserver, NodeDiscoveryProvider, NodeDiscoveryState,
@@ -7,10 +6,11 @@ use crate::node::discovery::{
 use crate::node::exploration::NodeExplorationObserver;
 use crate::node::stats::NodeStatsStreamFactory;
 use crate::node::{
-    HostnameGenerator, Node, NodeController, NodeDrainingCause, NodeState, NodeStateInfo,
-    NodeStateObserver, NodeStats, NodeStatsInfo, NodeStatsObserver,
+    HostnameGenerator, Node, NodeController, NodeControllerProviders, NodeDrainingCause, NodeState,
+    NodeStateInfo, NodeStateObserver, NodeStats, NodeStatsInfo, NodeStatsObserver,
 };
 use crate::node_groups::{Config, NodeGroup};
+use crate::AppConfig;
 use act_zero::runtimes::tokio::{spawn_actor, Timer};
 use act_zero::timer::Tick;
 use act_zero::{send, upcast, Actor, ActorResult, Addr, Produces, WeakAddr};
@@ -33,7 +33,7 @@ pub struct NodeGroupScaler {
     node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
     hostname_generator: Arc<dyn HostnameGenerator>,
     scale_locks_spare: SpareScaleLocks,
-    config: Arc<config::NodeGroupScaler>,
+    config: AppConfig,
 }
 
 #[derive(Default)]
@@ -56,7 +56,7 @@ impl NodeGroupScaler {
         dns_provider: Addr<dyn DnsProvider>,
         node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
         hostname_generator: Arc<dyn HostnameGenerator>,
-        config: Arc<config::NodeGroupScaler>,
+        config: AppConfig,
     ) -> Self {
         NodeGroupScaler {
             node_group,
@@ -434,7 +434,7 @@ impl NodeGroupScaler {
                 "Trigger provisioning of new active nodes to reach the minimum"
             );
 
-            let scale_lock_timeout = self.config.scale_lock_timeout_s;
+            let scale_lock_timeout = self.config.node_group_scaler.scale_lock_timeout_s;
             let scale_locks = (0..missing_nodes)
                 .map(|_| self.provision_new_node(NodeDiscoveryState::Active))
                 .map(|hostname| {
@@ -564,7 +564,10 @@ impl NodeGroupScaler {
                 Some(ScaleLock::new(
                     hostname,
                     ScaleLockExpectation::State(NodeState::Ready),
-                    ScaleLockCooldowns::new(None, future_instant(self.config.scale_lock_timeout_s)),
+                    ScaleLockCooldowns::new(
+                        None,
+                        future_instant(self.config.node_group_scaler.scale_lock_timeout_s),
+                    ),
                 ))
             }
         }
@@ -629,7 +632,10 @@ impl NodeGroupScaler {
             _ => ScaleLock::new(
                 hostname.into(),
                 ScaleLockExpectation::Gone,
-                ScaleLockCooldowns::new(None, future_instant(self.config.scale_lock_timeout_s)),
+                ScaleLockCooldowns::new(
+                    None,
+                    future_instant(self.config.node_group_scaler.scale_lock_timeout_s),
+                ),
             ),
         }
     }
@@ -706,10 +712,13 @@ impl NodeGroupScaler {
             },
             upcast!(self.addr.clone()),
             upcast!(self.addr.clone()),
-            self.node_discovery_provider.clone(),
-            self.cloud_provider.clone(),
-            self.dns_provider.clone(),
+            NodeControllerProviders {
+                node_discovery_provider: self.node_discovery_provider.clone(),
+                cloud_provider: self.cloud_provider.clone(),
+                dns_provider: self.dns_provider.clone(),
+            },
             self.node_stats_stream_factory.clone(),
+            Arc::clone(&self.config),
         );
 
         ScalingNode {
