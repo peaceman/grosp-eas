@@ -564,7 +564,7 @@ impl NodeGroupScaler {
                 Some(ScaleLock::new(
                     hostname,
                     ScaleLockExpectation::State(NodeState::Ready),
-                    ScaleLockCooldowns::new(Some(future_instant(15)), future_instant(30)),
+                    ScaleLockCooldowns::new(None, future_instant(self.config.scale_lock_timeout_s)),
                 ))
             }
         }
