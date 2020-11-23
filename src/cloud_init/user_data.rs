@@ -1,7 +1,6 @@
 use crate::config;
 use crate::utils;
 use anyhow::{anyhow, Context, Result};
-use base64_stream::ToBase64Writer;
 use serde::{Deserialize, Serialize};
 use serde_yaml::Value;
 use std::fs::File;
@@ -112,7 +111,7 @@ fn read_cloud_config(path: &str) -> Result<CloudConfig> {
         .and_then(|r| serde_yaml::from_reader(r).with_context(|| "Failed to parse cloud config"))
 }
 
-fn encode_file(path: &str) -> Result<String> {
+pub fn encode_file(path: &str) -> Result<String> {
     let file_reader = File::open(path)
         .with_context(|| format!("Failed to open file for encoding {}", path))
         .map(BufReader::new)?;
@@ -120,15 +119,20 @@ fn encode_file(path: &str) -> Result<String> {
     encode(file_reader)
 }
 
-fn encode<R: io::Read>(mut reader: R) -> Result<String> {
-    let mut base64_content = vec![];
-    let base64_writer = ToBase64Writer::new(&mut base64_content);
-    let mut gzip_writer = libflate::gzip::Encoder::new(base64_writer)?;
+pub fn encode<R: io::Read>(mut reader: R) -> Result<String> {
+    let mut output = vec![];
 
-    io::copy(&mut reader, &mut gzip_writer)?;
-    gzip_writer.finish().into_result()?;
+    {
+        let base64 = base64::write::EncoderWriter::new(&mut output, base64::STANDARD);
+        let mut gzip = libflate::gzip::Encoder::new(base64)?;
 
-    Ok(String::from_utf8(base64_content)?)
+        io::copy(&mut reader, &mut gzip)?;
+
+        let mut base64 = gzip.finish().into_result()?;
+        base64.finish()?;
+    }
+
+    Ok(String::from_utf8(output)?)
 }
 
 #[derive(Deserialize, Serialize)]
