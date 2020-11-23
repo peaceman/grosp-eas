@@ -364,8 +364,6 @@ impl NodeGroupScaler {
                     self.scale_locks_spare
                         .up
                         .insert(scale_lock.hostname.clone(), scale_lock);
-
-                    ()
                 }
                 None => break,
             }
@@ -513,16 +511,10 @@ impl NodeGroupScaler {
     }
 
     fn try_reactivate_draining_node(&mut self) -> Option<Vec<ScaleLock>> {
-        let reactivatable = self
+        let (hostname, node) = self
             .nodes
             .iter()
-            .find(|(_k, v)| v.state.is_draining(NodeDrainingCause::Scaling));
-
-        if reactivatable.is_none() {
-            return None;
-        }
-
-        let (hostname, node) = reactivatable.unwrap();
+            .find(|(_k, v)| v.state.is_draining(NodeDrainingCause::Scaling))?;
 
         info!(%hostname, "Found re-activatable draining node");
         send!(node.controller.activate_node());
@@ -535,13 +527,7 @@ impl NodeGroupScaler {
     }
 
     fn try_activate_ready_node(&mut self) -> Option<Vec<ScaleLock>> {
-        let reactivatable = self.nodes.iter().find(|(_k, v)| v.state.is_ready());
-
-        if reactivatable.is_none() {
-            return None;
-        }
-
-        let (hostname, node) = reactivatable.unwrap();
+        let (hostname, node) = self.nodes.iter().find(|(_k, v)| v.state.is_ready())?;
 
         info!(%hostname, "Found activatable ready node");
         send!(node.controller.activate_node());
@@ -675,7 +661,7 @@ impl NodeGroupScaler {
 
         match max_capacity {
             0 => 0,
-            max_capacity => ((result.bandwidth as f64 / max_capacity as f64) * 100 as f64) as u8,
+            max_capacity => ((result.bandwidth as f64 / max_capacity as f64) * 100f64) as u8,
         }
     }
 
@@ -688,10 +674,7 @@ impl NodeGroupScaler {
     )]
     async fn remove_deprovisioned_nodes(&mut self) {
         self.nodes
-            .retain(|_, scaling_node| match scaling_node.state {
-                NodeState::Deprovisioned => false,
-                _ => true,
-            });
+            .retain(|_, scaling_node| !matches!(scaling_node.state, NodeState::Deprovisioned));
     }
 
     #[tracing::instrument(
@@ -714,9 +697,11 @@ impl NodeGroupScaler {
         )
     )]
     fn create_scaling_node(&self, hostname: impl AsRef<str>) -> ScalingNode {
+        let hostname = hostname.as_ref().to_string();
+
         let node_controller = NodeController::new(
             Node {
-                hostname: hostname.as_ref().clone().into(),
+                hostname,
                 group: self.node_group.name.clone(),
             },
             upcast!(self.addr.clone()),
@@ -808,10 +793,9 @@ fn is_releasable_scale_lock(nodes: &HashMap<String, ScalingNode>, scale_lock: &S
 
     let fulfilled_expectation = match &scale_lock.expectation {
         ScaleLockExpectation::Gone => !nodes.contains_key(&scale_lock.hostname),
-        ScaleLockExpectation::State(expected_node_state) => match nodes.get(&scale_lock.hostname) {
-            Some(node) if &node.state == expected_node_state => true,
-            _ => false,
-        },
+        ScaleLockExpectation::State(expected_node_state) => {
+            matches!(nodes.get(&scale_lock.hostname), Some(node) if &node.state == expected_node_state)
+        }
     };
 
     if fulfilled_expectation {

@@ -15,8 +15,21 @@ pub trait NodeGroupDiscoveryProvider: Actor {
 
 pub fn build_from_config(
     config: AppConfig,
+) -> anyhow::Result<Vec<Addr<dyn NodeGroupDiscoveryProvider>>> {
+    let mut providers = Vec::with_capacity(config.node_group_discovery_providers.len());
+
+    for provider_config in config.node_group_discovery_providers.iter() {
+        providers.push(build_provider_from_config(&config, provider_config)?);
+    }
+
+    Ok(providers)
+}
+
+fn build_provider_from_config(
+    _config: &AppConfig,
+    provider_config: &config::NodeGroupDiscoveryProvider,
 ) -> anyhow::Result<Addr<dyn NodeGroupDiscoveryProvider>> {
-    Ok(match &config.node_group_discovery_provider {
+    Ok(match provider_config {
         config::NodeGroupDiscoveryProvider::File { path } => {
             upcast!(spawn_actor(file::FileNodeGroupDiscovery::new(path)))
         }

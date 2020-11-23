@@ -26,7 +26,7 @@ impl Handler for Data<Provisioning> {
 
                 match (
                     &discovery_data.state,
-                    &discovery_data.state == &self.state.target_state,
+                    discovery_data.state == self.state.target_state,
                 ) {
                     (NodeDiscoveryState::Ready, true) => NodeMachine::Ready(Data {
                         shared: self.shared,

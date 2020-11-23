@@ -41,14 +41,14 @@ pub fn build_stream_factory_from_config(
 ) -> anyhow::Result<Box<dyn NodeStatsStreamFactory>> {
     match &config.node_stats {
         config::NodeStats::File { interval, path } => Ok(Box::new(
-            FileNodeStatsStreamFactory::new(path.clone(), interval.clone()),
+            FileNodeStatsStreamFactory::new(path.clone(), *interval),
         )),
         config::NodeStats::NSS { tls, port } => Ok(Box::new(NSSStreamFactory::new(
             fs::read(&tls.ca_cert_path)?,
             fs::read(&tls.client_cert_path)?,
             fs::read(&tls.client_key_path)?,
             tls.target_sni_name.clone(),
-            port.clone(),
+            *port,
         ))),
     }
 }

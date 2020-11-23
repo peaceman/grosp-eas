@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+source "${BASH_SOURCE%/*}/default-vars.sh"
+source "${BASH_SOURCE%/*}/docker-hub-login.sh"
+
+TARGET_COMPILE_STAGE="$DOCKER_REPO:compile-stage-$DOCKER_TARGET_TAG"
+TARGET_RUNTIME_STAGE="$DOCKER_REPO:$DOCKER_TARGET_TAG"
+
+echo "Publishing $COMPILE_IMAGE_ID to $TARGET_COMPILE_STAGE"
+docker tag "$COMPILE_IMAGE_ID" "$TARGET_COMPILE_STAGE"
+docker push "$TARGET_COMPILE_STAGE"
+
+echo "Publishing $RUNTIME_IMAGE_ID to $TARGET_RUNTIME_STAGE"
+docker tag "$RUNTIME_IMAGE_ID" "$TARGET_RUNTIME_STAGE"
+docker push "$TARGET_RUNTIME_STAGE"

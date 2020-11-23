@@ -169,24 +169,28 @@ mod record_store {
         pub fn add(&mut self, record: Record) {
             let record = Arc::new(record);
 
-            if let Some(_) = self.records.insert(record.id.clone(), Arc::clone(&record)) {
+            if self
+                .records
+                .insert(record.id.clone(), Arc::clone(&record))
+                .is_some()
+            {
                 self.remove_from_lookup(record.as_ref());
             }
 
             let by_type = self
                 .lookup
                 .entry(record.name.clone())
-                .or_insert_with(|| HashMap::new());
+                .or_insert_with(HashMap::new);
 
             let record_list = by_type
                 .entry(record.record_type.clone())
-                .or_insert_with(|| Vec::new());
+                .or_insert_with(Vec::new);
 
             record_list.push(Arc::downgrade(&record));
         }
 
         pub fn remove(&mut self, record: &Record) {
-            if let Some(_) = self.records.remove(&record.id) {
+            if self.records.remove(&record.id).is_some() {
                 self.remove_from_lookup(record);
             }
         }
@@ -196,7 +200,7 @@ mod record_store {
                 .get(name)
                 .and_then(|by_type| by_type.get(record_type))
                 .map(|list| list.iter().filter_map(|r| r.upgrade()).collect())
-                .unwrap_or_else(|| vec![])
+                .unwrap_or_else(Vec::new)
         }
 
         pub fn is_empty(&self) -> bool {

@@ -318,7 +318,7 @@ impl NodeMachine {
                 state: Draining { cause, .. },
                 ..
             }) => NodeStateInfo {
-                state: NodeState::Draining(cause.clone()),
+                state: NodeState::Draining(*cause),
                 hostname: node.hostname.clone(),
             },
             NodeMachine::Deprovisioned(Data {

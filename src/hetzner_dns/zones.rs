@@ -22,7 +22,7 @@ impl Zones for Client {
         let mut params = HashMap::new();
         params.insert(String::from("name"), String::from(name));
 
-        let path = format!("/api/v1/zones");
+        let path = "/api/v1/zones".to_string();
         let (mut zones, _pagination_meta): (Vec<Zone>, _) = get_list(
             &self.http_client,
             &self.config,

@@ -1,5 +1,4 @@
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
-use crate::config;
 use crate::dns_provider::DnsProvider;
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryObserver, NodeDiscoveryProvider};
 use crate::node::exploration::NodeExplorationObserver;
@@ -7,11 +6,12 @@ use crate::node::stats::NodeStatsStreamFactory;
 use crate::node::HostnameGenerator;
 use crate::node_groups::scaler::NodeGroupScaler;
 use crate::node_groups::NodeGroup;
+use crate::AppConfig;
 use act_zero::runtimes::tokio::spawn_actor;
 use act_zero::{send, Addr, AddrLike};
 use async_trait::async_trait;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use tracing::info;
 
 #[derive(Debug)]
@@ -42,8 +42,7 @@ pub struct Shared {
     dns_provider: Addr<dyn DnsProvider>,
     node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
     hostname_generator: Arc<dyn HostnameGenerator>,
-    discovery_timeout: Duration,
-    scaler_config: Arc<config::NodeGroupScaler>,
+    config: AppConfig,
 }
 
 #[derive(Debug)]
@@ -66,7 +65,7 @@ impl Handler for Data<Initializing> {
                     self.shared.dns_provider.clone(),
                     self.shared.node_stats_stream_factory.clone(),
                     Arc::clone(&self.shared.hostname_generator),
-                    Arc::clone(&self.shared.scaler_config),
+                    Arc::new(self.shared.config.node_group_scaler.clone()),
                 ));
 
                 NodeGroupMachine::Running(Data {
@@ -131,12 +130,14 @@ impl Handler for Data<Running> {
 
 impl Data<Running> {
     async fn check_last_discovery(self) -> NodeGroupMachine {
-        let should_discard = Instant::now().duration_since(self.state.last_discovery)
-            > self.shared.discovery_timeout;
+        let discovery_timeout = &self.shared.config.node_group_discovery_timeout;
+
+        let should_discard =
+            Instant::now().duration_since(self.state.last_discovery) > *discovery_timeout;
 
         if should_discard {
             info!(
-                timeout_secs = self.shared.discovery_timeout.as_secs(),
+                timeout_secs = discovery_timeout.as_secs(),
                 "NodeGroup reached discovery timeout",
             );
             self.handle(Some(Event::Discard)).await
@@ -207,8 +208,7 @@ impl NodeGroupMachine {
         dns_provider: Addr<dyn DnsProvider>,
         node_stats_stream_factory: Box<dyn NodeStatsStreamFactory>,
         hostname_generator: Arc<dyn HostnameGenerator>,
-        discovery_timeout: Duration,
-        scaler_config: Arc<config::NodeGroupScaler>,
+        config: AppConfig,
     ) -> Self {
         Self::Initializing(Data {
             shared: Shared {
@@ -218,8 +218,7 @@ impl NodeGroupMachine {
                 dns_provider,
                 node_stats_stream_factory,
                 hostname_generator,
-                discovery_timeout,
-                scaler_config,
+                config,
             },
             state: Initializing,
         })
