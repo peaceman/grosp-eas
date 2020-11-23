@@ -1,4 +1,5 @@
 use crate::AppConfig;
+use anyhow::Context;
 use serde::Deserialize;
 use std::fs::File;
 use std::io::BufReader;
@@ -132,7 +133,8 @@ pub struct NodeGroupScaler {
 
 pub fn load_config() -> anyhow::Result<AppConfig> {
     let config_path = get_config_path()?;
-    let file = File::open(config_path)?;
+    let file = File::open(&config_path)
+        .with_context(|| format!("Failed to open config file {}", &config_path))?;
 
     Ok(Arc::new(serde_yaml::from_reader(BufReader::new(file))?))
 }

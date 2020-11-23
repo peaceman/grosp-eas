@@ -72,7 +72,7 @@ fn generate_extra_vars(
     base_file_path: &str,
 ) -> Result<Vec<u8>> {
     let mut value: Value = File::open(base_file_path)
-        .with_context(|| format!("Failed to open file {}", base_file_path))
+        .with_context(|| format!("Failed to open extra vars base file {}", base_file_path))
         .map(BufReader::new)
         .and_then(|r| {
             serde_yaml::from_reader(r).with_context(|| "Failed to parse extra vars base file")
@@ -107,13 +107,15 @@ fn generate_extra_vars(
 
 fn read_cloud_config(path: &str) -> Result<CloudConfig> {
     File::open(path)
-        .with_context(|| format!("Failed to open file {}", path))
+        .with_context(|| format!("Failed to open cloud config file {}", path))
         .map(BufReader::new)
         .and_then(|r| serde_yaml::from_reader(r).with_context(|| "Failed to parse cloud config"))
 }
 
 fn encode_file(path: &str) -> Result<String> {
-    let file_reader = File::open(path).map(BufReader::new)?;
+    let file_reader = File::open(path)
+        .with_context(|| format!("Failed to open file for encoding {}", path))
+        .map(BufReader::new)?;
 
     encode(file_reader)
 }
