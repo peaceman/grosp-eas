@@ -17,6 +17,11 @@ impl Handler for Data<Exploring> {
                     state: Deprovisioning::new(None),
                 })
             }
+            Some(NodeMachineEvent::ExploredNode { node_info }) => {
+                info!("Explored node");
+
+                self.explored_node(node_info)
+            }
             _ if self.reached_exploration_timeout() => {
                 info!("Node reached exploration timeout");
 
@@ -40,20 +45,7 @@ impl Data<Exploring> {
         .await;
 
         if let Ok(Some(node_info)) = node_info {
-            match self.state.discovery_data.state {
-                NodeDiscoveryState::Ready => NodeMachine::Ready(Data {
-                    shared: self.shared,
-                    state: Ready::new(node_info, None),
-                }),
-                NodeDiscoveryState::Active => NodeMachine::Active(Data {
-                    shared: self.shared,
-                    state: Active::new_marked(node_info, None),
-                }),
-                NodeDiscoveryState::Draining(cause) => NodeMachine::Draining(Data {
-                    shared: self.shared,
-                    state: Draining::new(node_info, cause, None),
-                }),
-            }
+            self.explored_node(node_info)
         } else {
             error!("Failed to fetch CloudNodeInfo {:?}", node_info);
             NodeMachine::Exploring(self)
@@ -63,5 +55,22 @@ impl Data<Exploring> {
     fn reached_exploration_timeout(&self) -> bool {
         Instant::now().duration_since(self.state.entered_state_at)
             >= self.shared.config.exploration_timeout
+    }
+
+    fn explored_node(self, node_info: CloudNodeInfo) -> NodeMachine {
+        match self.state.discovery_data.state {
+            NodeDiscoveryState::Ready => NodeMachine::Ready(Data {
+                shared: self.shared,
+                state: Ready::new(node_info, None),
+            }),
+            NodeDiscoveryState::Active => NodeMachine::Active(Data {
+                shared: self.shared,
+                state: Active::new_marked(node_info, None),
+            }),
+            NodeDiscoveryState::Draining(cause) => NodeMachine::Draining(Data {
+                shared: self.shared,
+                state: Draining::new(node_info, cause, None),
+            }),
+        }
     }
 }
