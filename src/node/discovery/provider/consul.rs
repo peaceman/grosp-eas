@@ -66,12 +66,17 @@ impl Actor for ConsulNodeDiscovery {
 
 #[async_trait]
 impl NodeDiscoveryProvider for ConsulNodeDiscovery {
+    #[tracing::instrument(name = "ConsulNodeDiscovery::update_state", skip(self))]
     async fn update_state(
         &mut self,
         hostname: String,
         state: NodeDiscoveryState,
     ) -> ActorResult<()> {
-        let service_entry = self.find_service_definition(&hostname).await?;
+        let service_entry = self
+            .find_service_definition(&hostname)
+            .await
+            .map_err(actor::Error::from)?;
+
         let mut service = service_entry.Service;
 
         let mut tags = service.Tags.clone().unwrap_or_else(Vec::new);
@@ -92,7 +97,10 @@ impl NodeDiscoveryProvider for ConsulNodeDiscovery {
             SkipNodeUpdate: true,
         };
 
-        self.consul.register(&registration, None).await?;
+        self.consul
+            .register(&registration, None)
+            .await
+            .map_err(actor::Error::from)?;
 
         Produces::ok(())
     }
@@ -102,7 +110,8 @@ impl NodeDiscoveryProvider for ConsulNodeDiscovery {
         let (services, _meta) = self
             .consul
             .service(&self.service_name, None, true, None, None)
-            .await?;
+            .await
+            .map_err(actor::Error::from)?;
 
         let ndd = services
             .into_iter()
