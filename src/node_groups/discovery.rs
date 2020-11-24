@@ -4,12 +4,13 @@ use crate::node_groups::discovery::provider::NodeGroupDiscoveryProvider;
 use crate::node_groups::NodeGroup;
 use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
-use act_zero::{call, send};
+use act_zero::{call, send, ActorError};
 use act_zero::{Actor, ActorResult, Addr, Produces, WeakAddr};
 use async_trait::async_trait;
 use std::time::Duration;
 use tracing::{error, info};
 
+use crate::actor;
 pub use provider::file::FileNodeGroupDiscovery;
 
 #[async_trait]
@@ -77,6 +78,10 @@ impl Actor for NodeGroupDiscovery {
             .set_interval_weak(self.addr.clone(), self.interval);
 
         Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        actor::handle_error(error)
     }
 }
 

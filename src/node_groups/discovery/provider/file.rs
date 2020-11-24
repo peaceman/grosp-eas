@@ -2,8 +2,8 @@ use tracing::info;
 
 use crate::node_groups::discovery::provider::NodeGroupDiscoveryProvider;
 use crate::node_groups::NodeGroup;
-use crate::utils;
-use act_zero::{Actor, ActorResult, Addr, Produces, WeakAddr};
+use crate::{actor, utils};
+use act_zero::{Actor, ActorError, ActorResult, Addr, Produces, WeakAddr};
 use anyhow::Context;
 use async_trait::async_trait;
 use futures::TryFutureExt;
@@ -42,6 +42,10 @@ impl Actor for FileNodeGroupDiscovery {
         self.addr = addr.downgrade();
 
         Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        actor::handle_error(error)
     }
 }
 

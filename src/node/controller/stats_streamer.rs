@@ -1,6 +1,7 @@
+use crate::actor;
 use crate::node::stats::NodeStatsStreamFactory;
 use crate::node::{NodeStatsInfo, NodeStatsObserver};
-use act_zero::{call, Actor, ActorResult, Addr, AddrLike, Produces, WeakAddr};
+use act_zero::{call, Actor, ActorError, ActorResult, Addr, AddrLike, Produces, WeakAddr};
 use async_trait::async_trait;
 use tokio::stream::StreamExt;
 use tracing::{info, trace, warn};
@@ -32,6 +33,10 @@ impl Actor for StatsStreamer {
         });
 
         Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        actor::handle_error(error)
     }
 }
 

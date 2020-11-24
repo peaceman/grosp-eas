@@ -1,6 +1,7 @@
+use crate::actor;
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
 use crate::node::discovery::NodeDiscoveryState;
-use act_zero::{Actor, ActorResult, Addr, Produces};
+use act_zero::{Actor, ActorError, ActorResult, Addr, Produces};
 use async_trait::async_trait;
 use tracing::info;
 
@@ -15,6 +16,10 @@ impl Actor for MockCloudProvider {
         info!("Started MockCloudProvider");
 
         Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        actor::handle_error(error)
     }
 }
 

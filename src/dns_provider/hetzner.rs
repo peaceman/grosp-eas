@@ -1,3 +1,4 @@
+use crate::actor;
 use crate::dns_provider::DnsProvider;
 use crate::hetzner_dns::records::{NewRecord, Records};
 use crate::hetzner_dns::zones::{Zone, Zones};
@@ -7,7 +8,7 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use record_store::RecordStore;
 use std::net::IpAddr;
-use tracing::{error, info};
+use tracing::info;
 
 pub struct HetznerDnsProvider {
     client: Client,
@@ -34,8 +35,7 @@ impl Actor for HetznerDnsProvider {
     }
 
     async fn error(&mut self, error: ActorError) -> bool {
-        error!(error = format!("{:?}", error).as_str());
-        false
+        actor::handle_error(error)
     }
 }
 

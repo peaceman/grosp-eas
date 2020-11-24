@@ -10,10 +10,10 @@ use crate::node::{
     NodeStateInfo, NodeStateObserver, NodeStats, NodeStatsInfo, NodeStatsObserver,
 };
 use crate::node_groups::{Config, NodeGroup};
-use crate::AppConfig;
+use crate::{actor, AppConfig};
 use act_zero::runtimes::tokio::{spawn_actor, Timer};
 use act_zero::timer::Tick;
-use act_zero::{send, upcast, Actor, ActorResult, Addr, Produces, WeakAddr};
+use act_zero::{send, upcast, Actor, ActorError, ActorResult, Addr, Produces, WeakAddr};
 use async_trait::async_trait;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -108,6 +108,10 @@ impl Actor for NodeGroupScaler {
             .set_interval_weak(self.addr.clone(), Duration::from_secs(1));
 
         Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        actor::handle_error(error)
     }
 }
 

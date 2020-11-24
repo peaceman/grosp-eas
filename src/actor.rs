@@ -1,6 +1,6 @@
 use std::error::Error as StdError;
 use std::fmt;
-use tracing::{error, info};
+use tracing::error;
 use tracing_error::SpanTrace;
 
 #[derive(Debug, thiserror::Error)]

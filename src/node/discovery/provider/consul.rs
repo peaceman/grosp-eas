@@ -1,9 +1,10 @@
+use crate::actor;
 use crate::consul::catalog::{Catalog, CatalogRegistration};
 use crate::consul::health::{Health, ServiceEntry};
 use crate::consul::Client as ConsulClient;
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState};
 use crate::node::NodeDrainingCause::{RollingUpdate, Scaling, Termination};
-use act_zero::{Actor, ActorResult, Addr, Produces};
+use act_zero::{Actor, ActorError, ActorResult, Addr, Produces};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -56,6 +57,10 @@ impl Actor for ConsulNodeDiscovery {
         info!("Started");
 
         Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        actor::handle_error(error)
     }
 }
 

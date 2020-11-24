@@ -1,9 +1,10 @@
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
-use act_zero::{call, send, Actor, ActorResult, Addr, Produces, WeakAddr};
+use act_zero::{call, send, Actor, ActorError, ActorResult, Addr, Produces, WeakAddr};
 use async_trait::async_trait;
 use std::time::Duration;
 use tracing::{error, info};
 
+use crate::actor;
 use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
 
@@ -67,6 +68,10 @@ impl Actor for NodeExploration {
             .set_interval_weak(self.addr.clone(), self.exploration_interval);
 
         Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        actor::handle_error(error)
     }
 }
 

@@ -1,5 +1,6 @@
 use super::DnsProvider;
-use act_zero::{Actor, ActorResult, Addr, Produces};
+use crate::actor;
+use act_zero::{Actor, ActorError, ActorResult, Addr, Produces};
 use async_trait::async_trait;
 use std::net::IpAddr;
 use tracing::info;
@@ -15,6 +16,10 @@ impl Actor for MockDnsProvider {
         info!("Started MockDnsProvider");
 
         Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        actor::handle_error(error)
     }
 }
 

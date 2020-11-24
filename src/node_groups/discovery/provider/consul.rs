@@ -1,8 +1,9 @@
+use crate::actor;
 use crate::consul::kv::KV;
 use crate::consul::Client;
 use crate::node_groups::discovery::provider::NodeGroupDiscoveryProvider;
 use crate::node_groups::NodeGroup;
-use act_zero::{Actor, ActorResult, Addr, Produces};
+use act_zero::{Actor, ActorError, ActorResult, Addr, Produces};
 use async_trait::async_trait;
 use tracing::{info, warn};
 
@@ -30,6 +31,10 @@ impl Actor for ConsulNodeGroupDiscovery {
         info!("Started");
 
         Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        actor::handle_error(error)
     }
 }
 

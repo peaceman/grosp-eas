@@ -1,7 +1,7 @@
 pub mod provider;
 
 use crate::node::NodeDrainingCause;
-use act_zero::{call, send, Actor, ActorResult, Addr, Produces, WeakAddr};
+use act_zero::{call, send, Actor, ActorError, ActorResult, Addr, Produces, WeakAddr};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -10,6 +10,7 @@ use act_zero::timer::Tick;
 use std::time::Duration;
 use tracing::{error, info};
 
+use crate::actor;
 pub use provider::NodeDiscoveryProvider;
 use std::fmt;
 
@@ -108,6 +109,10 @@ impl Actor for NodeDiscovery {
             .set_interval_weak(self.addr.clone(), self.discovery_interval);
 
         Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        actor::handle_error(error)
     }
 }
 

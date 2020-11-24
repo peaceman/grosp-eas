@@ -1,8 +1,8 @@
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryState};
-use crate::utils;
 use crate::utils::path_append;
-use act_zero::{Actor, ActorResult, Addr, Produces, WeakAddr};
+use crate::{actor, utils};
+use act_zero::{Actor, ActorError, ActorResult, Addr, Produces, WeakAddr};
 use anyhow::Context;
 use async_trait::async_trait;
 use chrono::Utc;
@@ -50,6 +50,10 @@ impl Actor for FileCloudProvider {
         self.addr = addr.downgrade();
 
         Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        actor::handle_error(error)
     }
 }
 

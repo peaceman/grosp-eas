@@ -1,8 +1,8 @@
 use crate::cloud_init::user_data::GenerateUserData;
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
-use crate::hetzner_cloud;
 use crate::hetzner_cloud::servers::{NewServer, Server, Servers};
 use crate::node::discovery::NodeDiscoveryState;
+use crate::{actor, hetzner_cloud};
 use act_zero::{Actor, ActorError, ActorResult, Addr, Produces};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -49,8 +49,8 @@ where
         Produces::ok(())
     }
 
-    async fn error(&mut self, _error: ActorError) -> bool {
-        false
+    async fn error(&mut self, error: ActorError) -> bool {
+        actor::handle_error(error)
     }
 }
 

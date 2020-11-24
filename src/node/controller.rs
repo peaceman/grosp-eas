@@ -9,14 +9,14 @@ use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryProvider, NodeDisco
 use crate::node::{Node, NodeDrainingCause, NodeStateObserver, NodeStatsObserver};
 use act_zero::runtimes::tokio::Timer;
 use act_zero::timer::Tick;
-use act_zero::{send, Actor, ActorResult, Addr, Produces, WeakAddr};
+use act_zero::{send, Actor, ActorError, ActorResult, Addr, Produces, WeakAddr};
 use async_trait::async_trait;
 use std::fmt;
 use std::time::Duration;
 use tracing::info;
 
 use crate::node::stats::NodeStatsStreamFactory;
-use crate::AppConfig;
+use crate::{actor, AppConfig};
 use config::Config;
 use stats_streamer::StatsStreamer;
 
@@ -59,6 +59,10 @@ impl Actor for NodeController {
             .set_interval_weak(self.addr.clone(), Duration::from_secs(1));
 
         Produces::ok(())
+    }
+
+    async fn error(&mut self, error: ActorError) -> bool {
+        actor::handle_error(error)
     }
 }
 
