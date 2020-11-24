@@ -36,12 +36,13 @@ where
 }
 
 pub fn handle_error(error: Box<dyn StdError + Send + Sync>) -> bool {
-    let (stop_actor, span_trace) = match error.downcast_ref::<Error>() {
+    let (error, stop_actor, span_trace) = match error.downcast_ref::<Error>() {
         Some(e) => (
+            format!("{:?}", e.source),
             matches!(&e.source, ErrorKind::Fatal(_)),
             Some(&e.span_trace),
         ),
-        None => (false, None),
+        None => (format!("{:?}", error), false, None),
     };
 
     error!(
