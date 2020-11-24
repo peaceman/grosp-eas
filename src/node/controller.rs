@@ -103,6 +103,7 @@ impl NodeController {
             draining_time: nc_config.draining_time,
             provisioning_timeout: nc_config.provisioning_timeout,
             discovery_timeout: nc_config.discovery_timeout,
+            exploration_timeout: nc_config.exploration_timeout,
         };
 
         Self {

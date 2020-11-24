@@ -140,6 +140,8 @@ pub struct NodeController {
     pub provisioning_timeout: Duration,
     #[serde(with = "humantime_serde")]
     pub discovery_timeout: Duration,
+    #[serde(with = "humantime_serde")]
+    pub exploration_timeout: Duration,
 }
 
 pub fn load_config() -> anyhow::Result<AppConfig> {

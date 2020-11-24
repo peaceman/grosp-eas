@@ -95,6 +95,16 @@ impl Provisioning {
 #[derive(Debug)]
 pub struct Exploring {
     pub discovery_data: NodeDiscoveryData,
+    entered_state_at: Instant,
+}
+
+impl Exploring {
+    fn new(discovery_data: NodeDiscoveryData) -> Self {
+        Self {
+            discovery_data,
+            entered_state_at: Instant::now(),
+        }
+    }
 }
 
 #[derive(Debug)]

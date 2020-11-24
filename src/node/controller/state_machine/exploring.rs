@@ -17,6 +17,14 @@ impl Handler for Data<Exploring> {
                     state: Deprovisioning::new(None),
                 })
             }
+            _ if self.reached_exploration_timeout() => {
+                info!("Node reached exploration timeout");
+
+                NodeMachine::Deprovisioning(Data {
+                    shared: self.shared,
+                    state: Deprovisioning::new(None),
+                })
+            }
             None => self.explore_node_info().await,
             _ => NodeMachine::Exploring(self),
         }
@@ -50,5 +58,10 @@ impl Data<Exploring> {
             error!("Failed to fetch CloudNodeInfo {:?}", node_info);
             NodeMachine::Exploring(self)
         }
+    }
+
+    fn reached_exploration_timeout(&self) -> bool {
+        Instant::now().duration_since(self.state.entered_state_at)
+            >= self.shared.config.exploration_timeout
     }
 }

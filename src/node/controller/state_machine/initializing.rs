@@ -15,7 +15,7 @@ impl Handler for Data<Initializing> {
             Some(NodeMachineEvent::DiscoveredNode { discovery_data }) => {
                 NodeMachine::Exploring(Data {
                     shared: self.shared,
-                    state: Exploring { discovery_data },
+                    state: Exploring::new(discovery_data),
                 })
             }
             Some(NodeMachineEvent::ExploredNode { node_info }) => NodeMachine::Discovering(Data {
