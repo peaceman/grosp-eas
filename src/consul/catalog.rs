@@ -27,7 +27,7 @@ pub trait Catalog {
         &self,
         reg: &CatalogRegistration,
         q: Option<&WriteOptions>,
-    ) -> Result<((), WriteMeta)>;
+    ) -> Result<(serde::de::IgnoredAny, WriteMeta)>;
 }
 
 #[async_trait]
@@ -36,7 +36,7 @@ impl Catalog for Client {
         &self,
         reg: &CatalogRegistration,
         q: Option<&WriteOptions>,
-    ) -> Result<((), WriteMeta)> {
+    ) -> Result<(serde::de::IgnoredAny, WriteMeta)> {
         put(
             &self.http_client,
             &self.config,
