@@ -30,7 +30,7 @@ pub async fn get<R: DeserializeOwned>(
     let json = response
         .json()
         .await
-        .with_context(|| "Failed to parse JSON response")?;
+        .with_context(|| "Failed to parse JSON response during get")?;
 
     Ok((
         json,
@@ -64,7 +64,7 @@ pub async fn get_vec<R: DeserializeOwned>(
         response
             .json()
             .await
-            .with_context(|| "Failed to parse JSON response")?
+            .with_context(|| "Failed to parse JSON response during get_vec")?
     } else {
         vec![]
     };
@@ -122,7 +122,7 @@ where
     let json = response
         .json()
         .await
-        .with_context(|| "Failed to parse JSON Response")?;
+        .with_context(|| "Failed to parse JSON Response during write_with_body")?;
 
     Ok((
         json,

@@ -77,6 +77,8 @@ impl NodeDiscoveryProvider for ConsulNodeDiscovery {
             .await
             .map_err(actor::Error::from)?;
 
+        info!("Fetched service definition");
+
         let mut service = service_entry.Service;
 
         let mut tags = service.Tags.clone().unwrap_or_else(Vec::new);
@@ -101,6 +103,8 @@ impl NodeDiscoveryProvider for ConsulNodeDiscovery {
             .register(&registration, None)
             .await
             .map_err(actor::Error::from)?;
+
+        info!("Updated service definition");
 
         Produces::ok(())
     }
