@@ -29,7 +29,7 @@ where
 {
     fn from(source: E) -> Self {
         Self {
-            source: ErrorKind::from(source).into(),
+            source: ErrorKind::from(source),
             span_trace: SpanTrace::capture(),
         }
     }
