@@ -17,6 +17,7 @@ use tokio::macros::support::{Pin, Poll};
 use tokio::stream::Stream;
 use tracing::info;
 use tracing::subscriber::set_global_default;
+use tracing_error::ErrorLayer;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{EnvFilter, Registry};
 
@@ -48,6 +49,7 @@ fn init_logging() -> Result<(), Box<dyn std::error::Error>> {
     let subscriber = Registry::default()
         .with(env_filter)
         .with(telemetry)
+        .with(ErrorLayer::default())
         .with(fmt_layer);
 
     set_global_default(subscriber).expect("Failed to set subscriber");
