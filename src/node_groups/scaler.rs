@@ -34,6 +34,7 @@ pub struct NodeGroupScaler {
     hostname_generator: Arc<dyn HostnameGenerator>,
     scale_locks_spare: SpareScaleLocks,
     config: AppConfig,
+    is_terminating: bool,
 }
 
 #[derive(Default)]
@@ -65,6 +66,7 @@ impl NodeGroupScaler {
             nodes: Default::default(),
             scale_locks: None,
             scale_locks_spare: Default::default(),
+            is_terminating: false,
             node_discovery_provider,
             cloud_provider,
             dns_provider,
@@ -121,7 +123,7 @@ impl Tick for NodeGroupScaler {
         if self.timer.tick() {
             send!(self.addr.remove_deprovisioned_nodes());
 
-            if self.node_group.config.is_some() {
+            if !self.is_terminating && self.node_group.config.is_some() {
                 send!(self.addr.check_scale_locks());
                 send!(self.addr.scale_spare());
                 send!(self.addr.scale());
@@ -238,6 +240,8 @@ impl NodeGroupScaler {
         )
     )]
     pub async fn terminate(&mut self) -> ActorResult<()> {
+        self.is_terminating = true;
+
         for scaling_node in self.nodes.values() {
             send!(scaling_node
                 .controller
