@@ -1,19 +1,18 @@
 use crate::actor;
-use crate::consul::kv::KV;
-use crate::consul::Client;
 use crate::node_groups::discovery::provider::NodeGroupDiscoveryProvider;
 use crate::node_groups::NodeGroup;
 use act_zero::{Actor, ActorError, ActorResult, Addr, Produces};
 use async_trait::async_trait;
+use consul_api_client::kv::KV;
 use tracing::{info, warn};
 
 pub struct ConsulNodeGroupDiscovery {
-    consul_client: Client,
+    consul_client: consul_api_client::Client,
     key_prefix: String,
 }
 
 impl ConsulNodeGroupDiscovery {
-    pub fn new(consul_client: Client, key_prefix: String) -> Self {
+    pub fn new(consul_client: consul_api_client::Client, key_prefix: String) -> Self {
         Self {
             consul_client,
             key_prefix,
@@ -42,7 +41,12 @@ impl Actor for ConsulNodeGroupDiscovery {
 impl NodeGroupDiscoveryProvider for ConsulNodeGroupDiscovery {
     #[tracing::instrument(name = "ConsulNodeGroupDiscovery::discover_node_groups", skip(self))]
     async fn discover_node_groups(&mut self) -> ActorResult<Vec<NodeGroup>> {
-        let (kv_pairs, _meta) = self.consul_client.list(&self.key_prefix, None).await?;
+        let (kv_pairs, _meta) = self
+            .consul_client
+            .list(&self.key_prefix, None)
+            .await
+            .map_err(anyhow::Error::new)
+            .map_err(actor::Error::from)?;
 
         let node_groups: Vec<NodeGroup> = kv_pairs
             .iter()

@@ -30,8 +30,8 @@ pub fn build_from_config(config: AppConfig) -> anyhow::Result<Addr<dyn NodeDisco
             service_name,
             address,
         } => {
-            let consul_client = crate::consul::Client::new(
-                crate::consul::Config::builder()
+            let consul_client = consul_api_client::Client::new(
+                consul_api_client::Config::builder()
                     .address(address.into())
                     .build()?,
             )?;

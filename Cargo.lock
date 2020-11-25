@@ -187,6 +187,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "consul-api-client"
+version = "0.1.0"
+source = "git+https://github.com/peaceman/rust-consul-api-client?branch=master#9438b41527d2bf753eace51ee3d38d6099886e37"
+dependencies = [
+ "async-trait",
+ "http",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "url",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -227,6 +241,7 @@ dependencies = [
  "async-trait",
  "base64 0.13.0",
  "chrono",
+ "consul-api-client",
  "env_logger",
  "futures",
  "http",

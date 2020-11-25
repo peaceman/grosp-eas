@@ -1,12 +1,12 @@
 use crate::actor;
-use crate::consul::catalog::{Catalog, CatalogRegistration};
-use crate::consul::health::{Health, ServiceEntry};
-use crate::consul::Client as ConsulClient;
 use crate::node::discovery::{NodeDiscoveryData, NodeDiscoveryProvider, NodeDiscoveryState};
 use crate::node::NodeDrainingCause::{RollingUpdate, Scaling, Termination};
 use act_zero::{Actor, ActorError, ActorResult, Addr, Produces};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use consul_api_client::catalog::{Catalog, CatalogRegistration};
+use consul_api_client::health::{Health, ServiceEntry};
+use consul_api_client::Client as ConsulClient;
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
@@ -102,6 +102,7 @@ impl NodeDiscoveryProvider for ConsulNodeDiscovery {
         self.consul
             .register(&registration, None)
             .await
+            .map_err(anyhow::Error::new)
             .map_err(actor::Error::from)?;
 
         info!("Updated service definition");
@@ -115,6 +116,7 @@ impl NodeDiscoveryProvider for ConsulNodeDiscovery {
             .consul
             .service(&self.service_name, None, true, None, None)
             .await
+            .map_err(anyhow::Error::new)
             .map_err(actor::Error::from)?;
 
         let ndd = services
