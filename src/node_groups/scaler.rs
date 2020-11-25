@@ -35,6 +35,7 @@ pub struct NodeGroupScaler {
     scale_locks_spare: SpareScaleLocks,
     config: AppConfig,
     is_terminating: bool,
+    started_at: Instant,
 }
 
 #[derive(Default)]
@@ -67,6 +68,7 @@ impl NodeGroupScaler {
             scale_locks: None,
             scale_locks_spare: Default::default(),
             is_terminating: false,
+            started_at: Instant::now(),
             node_discovery_provider,
             cloud_provider,
             dns_provider,
@@ -123,7 +125,7 @@ impl Tick for NodeGroupScaler {
         if self.timer.tick() {
             send!(self.addr.remove_deprovisioned_nodes());
 
-            if !self.is_terminating && self.node_group.config.is_some() {
+            if self.should_scale() {
                 send!(self.addr.check_scale_locks());
                 send!(self.addr.scale_spare());
                 send!(self.addr.scale());
@@ -232,6 +234,13 @@ impl NodeStatsObserver for NodeGroupScaler {
 }
 
 impl NodeGroupScaler {
+    fn should_scale(&self) -> bool {
+        !self.is_terminating
+            && self.node_group.config.is_some()
+            && Instant::now().duration_since(self.started_at)
+                > self.config.node_group_scaler.startup_cooldown
+    }
+
     #[tracing::instrument(
         name = "NodeGroupScaler::terminate",
         skip(self),

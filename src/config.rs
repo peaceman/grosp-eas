@@ -130,6 +130,8 @@ pub struct CloudInitUserDataFile {
 pub struct NodeGroupScaler {
     pub node_hostname_suffix: String,
     pub scale_lock_timeout_s: u64,
+    #[serde(with = "humantime_serde")]
+    pub startup_cooldown: Duration,
 }
 
 #[derive(Clone, Deserialize, Debug)]
