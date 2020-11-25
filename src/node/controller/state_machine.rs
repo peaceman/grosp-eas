@@ -130,6 +130,7 @@ pub struct Ready {
     entered_state_at: Instant,
     last_discovered_at: Option<Instant>,
     stats_streamer: Option<Addr<StatsStreamer>>,
+    marked_as_ready: bool,
 }
 
 impl Ready {
@@ -139,6 +140,7 @@ impl Ready {
             entered_state_at: Instant::now(),
             last_discovered_at: None,
             stats_streamer,
+            marked_as_ready: false,
         }
     }
 }
