@@ -14,6 +14,7 @@ use crate::{actor, AppConfig};
 use act_zero::runtimes::tokio::{spawn_actor, Timer};
 use act_zero::timer::Tick;
 use act_zero::{send, upcast, Actor, ActorError, ActorResult, Addr, Produces, WeakAddr};
+use anyhow::anyhow;
 use async_trait::async_trait;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -259,7 +260,10 @@ impl NodeGroupScaler {
 
         trace!(remaining_nodes = self.nodes.len());
         if self.nodes.is_empty() {
-            Err(format!("Terminated all nodes {}", self).into())
+            let err: actor::Error =
+                actor::ErrorKind::Fatal(anyhow!("Terminated all nodes {}", self)).into();
+
+            Err(err.into())
         } else {
             Produces::ok(())
         }
