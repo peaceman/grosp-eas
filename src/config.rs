@@ -103,6 +103,11 @@ pub enum DnsProvider {
         api_token: String,
         address: String,
     },
+    Cloudflare {
+        zone_id: String,
+        api_token: String,
+        record_ttl: u32,
+    },
 }
 
 #[derive(Deserialize, Debug)]

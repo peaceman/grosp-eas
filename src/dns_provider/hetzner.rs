@@ -1,12 +1,12 @@
 use crate::actor;
-use crate::dns_provider::DnsProvider;
-use crate::hetzner_dns::records::{NewRecord, Records};
+use crate::dns_provider::record_store::RecordStore;
+use crate::dns_provider::{record_store, record_type, DnsProvider};
+use crate::hetzner_dns::records::{NewRecord, Record, Records};
 use crate::hetzner_dns::zones::{Zone, Zones};
 use crate::hetzner_dns::Client;
 use act_zero::{Actor, ActorError, ActorResult, Addr, Produces};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use record_store::RecordStore;
 use std::net::IpAddr;
 use tracing::info;
 
@@ -14,7 +14,7 @@ pub struct HetznerDnsProvider {
     client: Client,
     config: Config,
     zone: Option<Zone>,
-    records: RecordStore,
+    records: RecordStore<Record>,
 }
 
 #[derive(Debug, Clone)]
@@ -138,7 +138,7 @@ impl HetznerDnsProvider {
     }
 }
 
-async fn load_records(client: &Client, zone: &Zone, store: &mut RecordStore) -> Result<()> {
+async fn load_records(client: &Client, zone: &Zone, store: &mut RecordStore<Record>) -> Result<()> {
     client
         .get_all_records(&zone.id)
         .await?
@@ -148,89 +148,16 @@ async fn load_records(client: &Client, zone: &Zone, store: &mut RecordStore) -> 
     Ok(())
 }
 
-mod record_store {
-    use crate::hetzner_dns::records::Record;
-    use std::collections::HashMap;
-    use std::sync::{Arc, Weak};
-
-    pub struct RecordStore {
-        records: HashMap<String, Arc<Record>>,
-        lookup: HashMap<String, HashMap<String, Vec<Weak<Record>>>>,
+impl record_store::Entry for Record {
+    fn get_id(&self) -> &str {
+        &self.id
     }
 
-    impl RecordStore {
-        pub fn new() -> Self {
-            Self {
-                records: HashMap::new(),
-                lookup: HashMap::new(),
-            }
-        }
-
-        pub fn add(&mut self, record: Record) {
-            let record = Arc::new(record);
-
-            if self
-                .records
-                .insert(record.id.clone(), Arc::clone(&record))
-                .is_some()
-            {
-                self.remove_from_lookup(record.as_ref());
-            }
-
-            let by_type = self
-                .lookup
-                .entry(record.name.clone())
-                .or_insert_with(HashMap::new);
-
-            let record_list = by_type
-                .entry(record.record_type.clone())
-                .or_insert_with(Vec::new);
-
-            record_list.push(Arc::downgrade(&record));
-        }
-
-        pub fn remove(&mut self, record: &Record) {
-            if self.records.remove(&record.id).is_some() {
-                self.remove_from_lookup(record);
-            }
-        }
-
-        pub fn get(&self, name: &str, record_type: &str) -> Vec<Arc<Record>> {
-            self.lookup
-                .get(name)
-                .and_then(|by_type| by_type.get(record_type))
-                .map(|list| list.iter().filter_map(|r| r.upgrade()).collect())
-                .unwrap_or_else(Vec::new)
-        }
-
-        pub fn is_empty(&self) -> bool {
-            self.records.is_empty()
-        }
-
-        fn remove_from_lookup(&mut self, record: &Record) {
-            if let Some(by_type) = self.lookup.get_mut(&record.name) {
-                if let Some(list) = by_type.get_mut(&record.record_type) {
-                    list.retain(|v| match v.upgrade() {
-                        Some(v) => v.id == record.id,
-                        None => true,
-                    });
-
-                    if list.is_empty() {
-                        by_type.remove(&record.name);
-                    }
-
-                    if by_type.is_empty() {
-                        self.lookup.remove(&record.name);
-                    }
-                }
-            }
-        }
+    fn get_name(&self) -> &str {
+        &self.name
     }
-}
 
-fn record_type(ip: &IpAddr) -> &'static str {
-    match ip {
-        IpAddr::V4(_) => "A",
-        IpAddr::V6(_) => "AAAA",
+    fn get_type(&self) -> &str {
+        &self.record_type
     }
 }
