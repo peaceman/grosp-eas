@@ -9,6 +9,7 @@ pub mod exploration;
 mod hostname;
 pub mod stats;
 
+use crate::node::discovery::NodeDiscoveryState;
 pub use controller::NodeController;
 pub use controller::Providers as NodeControllerProviders;
 pub use hostname::HostnameGenerator;
@@ -83,6 +84,16 @@ impl NodeState {
 
     pub fn is_ready(&self) -> bool {
         matches!(self, NodeState::Ready)
+    }
+}
+
+impl From<NodeDiscoveryState> for NodeState {
+    fn from(s: NodeDiscoveryState) -> Self {
+        match s {
+            NodeDiscoveryState::Ready => NodeState::Ready,
+            NodeDiscoveryState::Active => NodeState::Active,
+            NodeDiscoveryState::Draining(cause) => NodeState::Draining(cause),
+        }
     }
 }
 

@@ -380,7 +380,7 @@ impl NodeGroupScaler {
     )]
     fn provision_spare_nodes(&mut self, amount: u32) {
         for _i in 0..amount {
-            match self.try_provision_new_node() {
+            match self.try_provision_new_node(NodeDiscoveryState::Ready) {
                 Some(scale_lock) => {
                     self.scale_locks_spare
                         .up
@@ -455,16 +455,8 @@ impl NodeGroupScaler {
                 "Trigger provisioning of new active nodes to reach the minimum"
             );
 
-            let scale_lock_timeout = self.config.node_group_scaler.scale_lock_timeout_s;
             let scale_locks = (0..missing_nodes)
-                .map(|_| self.provision_new_node(NodeDiscoveryState::Active))
-                .map(|hostname| {
-                    ScaleLock::new(
-                        hostname,
-                        ScaleLockExpectation::State(NodeState::Active),
-                        ScaleLockCooldowns::new(None, future_instant(scale_lock_timeout)),
-                    )
-                })
+                .filter_map(|_| self.try_provision_new_node(NodeDiscoveryState::Active))
                 .collect();
 
             Some(scale_locks)
@@ -528,7 +520,10 @@ impl NodeGroupScaler {
             // try activating ready nodes
             .or_else(|| self.try_activate_ready_node())
             // provision new node
-            .or_else(|| self.try_provision_new_node().map(|sl| vec![sl]))
+            .or_else(|| {
+                self.try_provision_new_node(NodeDiscoveryState::Active)
+                    .map(|sl| vec![sl])
+            })
     }
 
     fn try_reactivate_draining_node(&mut self) -> Option<Vec<ScaleLock>> {
@@ -564,7 +559,7 @@ impl NodeGroupScaler {
         )])
     }
 
-    fn try_provision_new_node(&mut self) -> Option<ScaleLock> {
+    fn try_provision_new_node(&mut self, target_state: NodeDiscoveryState) -> Option<ScaleLock> {
         let current_nodes = self.nodes.len() as u32;
         let reached_node_limit = self
             .node_group
@@ -580,11 +575,11 @@ impl NodeGroupScaler {
                 None
             }
             Some(false) | None => {
-                let hostname = self.provision_new_node(NodeDiscoveryState::Ready);
+                let hostname = self.provision_new_node(target_state.clone());
 
                 Some(ScaleLock::new(
                     hostname,
-                    ScaleLockExpectation::State(NodeState::Ready),
+                    ScaleLockExpectation::State(target_state.into()),
                     ScaleLockCooldowns::new(
                         None,
                         future_instant(self.config.node_group_scaler.scale_lock_timeout_s),
