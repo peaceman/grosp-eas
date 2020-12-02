@@ -90,6 +90,7 @@ pub enum CloudProvider {
         group_label_name: String,
         api_address: String,
         api_token: String,
+        location: Option<String>,
     },
 }
 

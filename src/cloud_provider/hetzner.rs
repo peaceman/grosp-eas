@@ -25,6 +25,7 @@ pub struct Config {
     pub server_type: String,
     pub image: String,
     pub ssh_keys: Vec<String>,
+    pub location: Option<String>,
 }
 
 impl<UDG: GenerateUserData> HetznerCloudProvider<UDG> {
@@ -115,6 +116,7 @@ where
                 .collect(),
             user_data: Some(&user_data),
             labels: Some(&labels),
+            location: self.config.location.as_ref().map(|s| s.as_str()),
         };
 
         let server = match self.client.create_server(&server).await {

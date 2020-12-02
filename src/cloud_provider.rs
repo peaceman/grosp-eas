@@ -53,6 +53,7 @@ pub fn build_from_config(config: AppConfig) -> anyhow::Result<Addr<dyn CloudProv
             group_label_name,
             api_address,
             api_token,
+            location,
         } => {
             let client = hetzner_cloud::Client::builder()
                 .address(api_address.clone())
@@ -69,6 +70,7 @@ pub fn build_from_config(config: AppConfig) -> anyhow::Result<Addr<dyn CloudProv
                     server_type: server_type.clone(),
                     image: image.clone(),
                     ssh_keys: ssh_keys.clone(),
+                    location: location.clone(),
                 },
                 user_data_generator,
             );

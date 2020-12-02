@@ -61,6 +61,8 @@ pub struct NewServer<'a> {
     pub user_data: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<&'a HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub location: Option<&'a str>,
 }
 
 #[async_trait]
