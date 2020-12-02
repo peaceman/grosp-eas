@@ -60,6 +60,7 @@ pub(super) async fn post<T: Serialize, R: DeserializeOwned>(
 
     if !response.status().is_success() {
         return Err(Error::BadResponse {
+            status: response.status(),
             headers: response.headers().clone(),
             body: response.text().await?,
         });
@@ -91,6 +92,7 @@ pub(super) async fn delete(
 
     if !response.status().is_success() {
         return Err(Error::BadResponse {
+            status: response.status(),
             headers: response.headers().clone(),
             body: response.text().await?,
         });

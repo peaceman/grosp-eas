@@ -1,4 +1,4 @@
-use http::HeaderMap;
+use http::{HeaderMap, StatusCode};
 use std::collections::HashMap;
 
 #[derive(thiserror::Error, Debug)]
@@ -13,8 +13,12 @@ pub enum Error {
     },
     #[error(transparent)]
     Reqwest(#[from] reqwest::Error),
-    #[error("Received bad response with headers {headers:?} and body {body:?}")]
-    BadResponse { headers: HeaderMap, body: String },
+    #[error("Received bad response with status {status:?} headers {headers:?} and body {body:?}")]
+    BadResponse {
+        status: StatusCode,
+        headers: HeaderMap,
+        body: String,
+    },
     #[error("Failed to deserialize response")]
     Deserialization {
         content: String,

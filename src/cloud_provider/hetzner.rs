@@ -1,11 +1,13 @@
 use crate::cloud_init::user_data::GenerateUserData;
 use crate::cloud_provider::{CloudNodeInfo, CloudProvider};
+use crate::hetzner_cloud::error::Error;
 use crate::hetzner_cloud::servers::{NewServer, Server, Servers};
 use crate::node::discovery::NodeDiscoveryState;
 use crate::{actor, hetzner_cloud};
 use act_zero::{Actor, ActorError, ActorResult, Addr, Produces};
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use http::StatusCode;
 use std::collections::HashMap;
 use tracing::error;
 use tracing::info;
@@ -146,10 +148,15 @@ where
 
         match self.client.delete_server(server_id).await {
             Ok(_) => Produces::ok(()),
-            Err(e) => {
-                error!("Failed to delete server: {:?}", e);
-                Err(e.into())
-            }
+            Err(e) => match e {
+                Error::BadResponse { status, .. } if status == StatusCode::NOT_FOUND => {
+                    Produces::ok(())
+                }
+                _ => {
+                    error!("Failed to delete server: {:?}", e);
+                    Err(e.into())
+                }
+            },
         }
     }
 
